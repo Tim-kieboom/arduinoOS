@@ -1,7 +1,8 @@
 #include <Arduino.h>
 
 #define BUFFER_SIZE 12
-#define COMMAND_MAX_SIZE 9 
+#define COMMAND_MAX_SIZE 9
+#define TOKEN_END_INDEXES_SIZE 8
 
 typedef struct File
 {
@@ -18,11 +19,10 @@ typedef struct CommandType
 
 typedef struct InputBuffer
 {
-  char* buffer;
+  char *buffer;
   uint8_t size;
-  uint8_t currentIndex;
 
-  uint8_t* tokenEndIndexes = new uint8_t[8];
+  uint8_t *tokenEndIndexes = new uint8_t[TOKEN_END_INDEXES_SIZE];
 };
 
 bool isEndOfToken(char ch)
@@ -30,74 +30,76 @@ bool isEndOfToken(char ch)
   return ch == ' ' || ch == '\n';
 }
 
-bool addEndIndex(InputBuffer* inputBuff, int index)
+bool addEndIndex(InputBuffer *inputBuff, int index)
 {
   int i = 0;
-  while(inputBuff->tokenEndIndexes[i++] != 0)
+  while (i < TOKEN_END_INDEXES_SIZE)
   {
-    if(i > 8)
-      return false;
+    if (inputBuff->tokenEndIndexes[i] == 0)
+    {
+      inputBuff->tokenEndIndexes[i] = index;
+      return true;
+    }
+    i++;
   }
 
-  inputBuff->tokenEndIndexes[i] = index;
-  return true;
+  return false;
 }
 
 void store()
 {
-
 }
 
-char* getCommandName(InputBuffer* inputBuff)
+char *getCommandName(InputBuffer *inputBuff)
 {
-  uint8_t tokenSize = inputBuff->tokenEndIndexes[0]+1;
-  char* firstToken = new char[tokenSize];
+  uint8_t tokenSize = inputBuff->tokenEndIndexes[0] + 1;
 
-  for(uint8_t i = 0; i < tokenSize; i++)
+  char *firstToken = new char[tokenSize];
+
+  for (uint8_t i = 0; i < tokenSize; i++)
   {
-    firstToken[i] = inputBuff->buffer[i]; 
+    firstToken[i] = inputBuff->buffer[i];
   }
 
   return firstToken;
 }
 
-void resetInputBuffer(InputBuffer* inputBuff)
+void resetInputBuffer(InputBuffer *inputBuff)
 {
-  if(inputBuff->buffer != nullptr)
+  inputBuff->size = Serial.available();
+
+  if (inputBuff->buffer != nullptr)
     delete[] inputBuff->buffer;
 
-  inputBuff->size = Serial.available();
-  inputBuff->buffer = new char[inputBuff->size];
-  inputBuff->currentIndex = 0;
+  inputBuff->buffer = new char[Serial.available()];
 
-  Serial.println(inputBuff->size);
+  for (uint8_t i = 0; i < TOKEN_END_INDEXES_SIZE; i++)
+    inputBuff->tokenEndIndexes[i] = 0;
 }
 
-bool readTokens(InputBuffer* inputBuff)
+bool readTokens(InputBuffer *inputBuff)
 {
   static bool bufferInit = true;
+  static uint8_t currentIndex = 0;
 
-  if(bufferInit)
+  if (bufferInit)
   {
     resetInputBuffer(inputBuff);
     bufferInit = false;
+    currentIndex = 0;
   }
 
-  uint8_t currentIndex = inputBuff->currentIndex;
   char ch = Serial.read();
-  
-  inputBuff->buffer[currentIndex] = ch;
 
-  if(isEndOfToken(ch))
-    addEndIndex(inputBuff, currentIndex-1);
+  inputBuff->buffer[currentIndex++] = ch;
 
-  Serial.print("index: ");
-  Serial.println(inputBuff->currentIndex);
-
-  inputBuff->currentIndex++;
-  if(inputBuff->currentIndex >= inputBuff->size)
+  if (isEndOfToken(ch))
   {
-    Serial.println("!!true!!");
+    addEndIndex(inputBuff, currentIndex - 2);
+  }
+
+  if (currentIndex >= inputBuff->size)
+  {
     bufferInit = true;
     return true;
   }
@@ -105,35 +107,37 @@ bool readTokens(InputBuffer* inputBuff)
   return false;
 }
 
-void printBuffer(InputBuffer* inputBuff)
+void printBuffer(InputBuffer *inputBuff)
 {
-  for (int i = 0; i < inputBuff->size; i++) 
+  for (int i = 0; i < inputBuff->size; i++)
   {
     Serial.print(inputBuff->buffer[i]);
   }
 }
 
-void setup() 
+void setup()
 {
   Serial.begin(9600);
   Serial.println("Arduino started");
 }
 
-void loop() 
+void loop()
 {
-  static InputBuffer* input = new InputBuffer();
-  static CommandType command[] =
-  {
-    {"store", &store}
-  };
+  static InputBuffer *input = new InputBuffer();
+  static CommandType command[] = {
+      {"store", &store}};
 
-  if(Serial.available() > 0)
+  if (Serial.available() > 0)
   {
-    if(readTokens(input))
+    if (readTokens(input))
     {
-      // printBuffer(input);
-      // char* commandName = getCommandName(input);
-      // Serial.println(commandName);
+      printBuffer(input);
+      // char *commandName = getCommandName(input);
+      // for (int i = 0; i < 3; i++)
+      // {
+      //   char ch = commandName[i];
+      //   Serial.println(ch);
+      // }
     }
   }
 }
