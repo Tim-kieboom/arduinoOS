@@ -2,7 +2,10 @@
 
 #define BUFFER_SIZE 12
 #define COMMAND_MAX_SIZE 9
+#define AMOUNT_OF_COMMANDS 1
 #define TOKEN_END_INDEXES_SIZE 8
+
+#define STRING_OF_COMMAND_NAMES "all commands:\n\t-store\n\t"
 
 typedef struct File
 {
@@ -20,14 +23,12 @@ typedef struct CommandType
 typedef struct InputBuffer
 {
   char *buffer;
-  uint8_t size;
-
   uint8_t *tokenEndIndexes = new uint8_t[TOKEN_END_INDEXES_SIZE];
 };
 
 bool isEndOfToken(char ch)
 {
-  return ch == ' ' || ch == '\n';
+  return isSpace(ch) || ch == '\0';
 }
 
 bool addEndIndex(InputBuffer *inputBuff, int index)
@@ -48,30 +49,30 @@ bool addEndIndex(InputBuffer *inputBuff, int index)
 
 void store()
 {
+  Serial.println("storeTest");
 }
 
 char *getCommandName(InputBuffer *inputBuff)
 {
-  uint8_t tokenSize = inputBuff->tokenEndIndexes[0] + 1;
+  uint8_t tokenSize = inputBuff->tokenEndIndexes[0] + 2;
 
   char *firstToken = new char[tokenSize];
 
-  for (uint8_t i = 0; i < tokenSize; i++)
+  for (uint8_t i = 0; i < tokenSize-1; i++)
   {
     firstToken[i] = inputBuff->buffer[i];
   }
+  firstToken[tokenSize-1] = '\0';
 
   return firstToken;
 }
 
 void resetInputBuffer(InputBuffer *inputBuff)
 {
-  inputBuff->size = Serial.available();
-
   if (inputBuff->buffer != nullptr)
     delete[] inputBuff->buffer;
 
-  inputBuff->buffer = new char[Serial.available()];
+  inputBuff->buffer = new char[Serial.available()+1];
 
   for (uint8_t i = 0; i < TOKEN_END_INDEXES_SIZE; i++)
     inputBuff->tokenEndIndexes[i] = 0;
@@ -94,12 +95,11 @@ bool readTokens(InputBuffer *inputBuff)
   inputBuff->buffer[currentIndex++] = ch;
 
   if (isEndOfToken(ch))
-  {
     addEndIndex(inputBuff, currentIndex - 2);
-  }
 
-  if (currentIndex >= inputBuff->size)
+  if (ch == '\n')
   {
+    inputBuff->buffer[currentIndex] = '\0';
     bufferInit = true;
     return true;
   }
@@ -109,10 +109,39 @@ bool readTokens(InputBuffer *inputBuff)
 
 void printBuffer(InputBuffer *inputBuff)
 {
-  for (int i = 0; i < inputBuff->size; i++)
+  char* buffer = inputBuff->buffer;
+  uint8_t i = -1;
+  while(buffer[++i] != '\0')
   {
-    Serial.print(inputBuff->buffer[i]);
+    Serial.print(buffer[i]);
   }
+  Serial.println();
+}
+
+void printArray(uint8_t* array, uint8_t size)
+{
+  for (int i = 0; i < size; i++)
+  {
+    Serial.print(array[i]);
+    Serial.print(", ");
+  }
+}
+
+bool doCommand(CommandType* commands, char* commandName)
+{
+  for(int i = 0; i < AMOUNT_OF_COMMANDS; i++)
+  {
+    CommandType command = commands[i];
+    if(strcmp(commandName, command.name) == 0)
+    {
+      command.func();
+      return true;
+    }
+  }
+
+  Serial.println("!!<error> command not found!!");
+  Serial.println(STRING_OF_COMMAND_NAMES);
+  return false;
 }
 
 void setup()
@@ -124,20 +153,18 @@ void setup()
 void loop()
 {
   static InputBuffer *input = new InputBuffer();
-  static CommandType command[] = {
-      {"store", &store}};
+  static CommandType commands[] = 
+  {
+    {"store", &store}
+  };
 
   if (Serial.available() > 0)
   {
     if (readTokens(input))
     {
-      printBuffer(input);
-      // char *commandName = getCommandName(input);
-      // for (int i = 0; i < 3; i++)
-      // {
-      //   char ch = commandName[i];
-      //   Serial.println(ch);
-      // }
+      char *commandName = getCommandName(input);
+      doCommand(commands, commandName);
     }
   }
+
 }
