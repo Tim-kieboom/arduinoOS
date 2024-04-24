@@ -21,7 +21,7 @@ struct EEPROM_Data
 
 struct FAT
 {
-  char fileName[BUFFER_SIZE];
+  char* fileName;
   uint16_t address;
   uint8_t size;
 };

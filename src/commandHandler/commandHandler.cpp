@@ -5,17 +5,15 @@ bool isEndOfToken(char ch)
   return isSpace(ch) || ch == ' ';
 }
 
-bool addEndIndex(InputBuffer *inputBuff, int index)
+bool addEndIndex(InputBuffer *inputBuff, int value)
 {
-  int i = 0;
-  while (i < TOKEN_END_INDEXES_SIZE)
+  for(int i = 0; i < TOKEN_END_INDEXES_SIZE; i++)
   {
     if (inputBuff->tokenEndIndexes[i] == 0)
     {
-      inputBuff->tokenEndIndexes[i] = index;
+      inputBuff->tokenEndIndexes[i] = value;
       return true;
     }
-    i++;
   }
 
   return false;
@@ -26,27 +24,13 @@ void printAllCommands(InputBuffer *inputBuff)
   Serial.println(STRING_OF_COMMAND_NAMES);
 }
 
-char *getCommandName(InputBuffer *inputBuff)
-{
-  uint8_t tokenSize = inputBuff->tokenEndIndexes[0] + 2;
-
-  char *firstToken = new char[tokenSize];
-
-  for (uint8_t i = 0; i < tokenSize - 1; i++)
-  {
-    firstToken[i] = inputBuff->buffer[i];
-  }
-  firstToken[tokenSize - 1] = '\0';
-
-  return firstToken;
-}
-
 void resetInputBuffer(InputBuffer *inputBuff)
 {
   if (inputBuff->buffer != nullptr)
     delete[] inputBuff->buffer;
 
   inputBuff->buffer = new char[Serial.available() + 1];
+  inputBuff->buffer[Serial.available()] = '\0';
 
   for (uint8_t i = 0; i < TOKEN_END_INDEXES_SIZE; i++)
     inputBuff->tokenEndIndexes[i] = 0;
@@ -68,25 +52,21 @@ bool readTokens(InputBuffer *inputBuff)
 
   inputBuff->buffer[currentIndex++] = ch;
 
-  if (isEndOfToken(ch))
+  if (ch == '\n' || ch == '\0')
   {
-    addEndIndex(inputBuff, currentIndex - 2);
-    currentIndex++;
-  }
-
-  if (ch == '\n')
-  {
-    inputBuff->buffer[currentIndex] = '\0';
     bufferInit = true;
     return true;
   }
+
+  if (isEndOfToken(ch))
+    addEndIndex(inputBuff, currentIndex - 2);
 
   return false;
 }
 
 char *getToken(InputBuffer *inputBuff, uint8_t tokenIndex)
 {
-  uint8_t tokenSize = inputBuff->tokenEndIndexes[tokenIndex] + 2;
+  uint8_t tokenSize = inputBuff->tokenEndIndexes[tokenIndex] + 1;
 
   if (inputBuff->tokenEndIndexes[tokenIndex] == 0)
     return new char[1]{'\0'};
@@ -104,11 +84,30 @@ char *getToken(InputBuffer *inputBuff, uint8_t tokenIndex)
 
   char *firstToken = new char[tokenSize];
 
-  for (uint8_t i = beginIndex; i < tokenSize - 1; i++)
+  uint8_t j = 0;
+  for (uint8_t i = beginIndex; i < tokenSize; i++)
   {
-    firstToken[i] = inputBuff->buffer[i];
+    firstToken[j++] = inputBuff->buffer[i];
   }
-  firstToken[tokenSize - 1] = '\0';
+  firstToken[j] = '\0';
 
   return firstToken;
+}
+
+bool doCommand(CommandType *commands, char *commandName, InputBuffer *input)
+{
+  uint8_t i = -1;
+
+  WHILE_NOT_END_OF_COMMANDS(commands, i)
+  {
+    CommandType command = commands[i];
+    if (strcmp(commandName, command.name) == 0)
+    {
+      command.func(input);
+      return true;
+    }
+  }
+
+  Serial.println("!!<error> command not found (type \'help\' to see options)!!");
+  return false;
 }
