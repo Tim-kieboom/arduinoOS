@@ -1,34 +1,32 @@
+/*
+Tim Kieboom 1025003
+*/
 #ifndef COMMANDHANDLER_H
 #define COMMANDHANDLER_H
 #pragma once
 
 #include <Arduino.h>
-#include "common.h"
+#include "../lib/TKardunio/TKarduino.h"
+#include "../InputBuffer/InputBuffer.h"
 
-#define WHILE_NOT_END_OF_COMMANDS(commands, i) while(strcmp(commands[i++].name, "\0") != 0)
+void commandFunc_printAllCommands(InputBuffer& inputBuff);
 
-#define STRING_OF_COMMAND_NAMES                   \
-"all commands:                                    \
-  \n\t-help                                       \
-  \n\t-store \t\t<file_name> <file_size> <data>   \
-  \n\t-retrieve \t<file_name>                     \
-  \n\t-erase \t\t<file_name>                      \
-  \n\t-file                                       \
-  \n\t-freespace                                  \
-  \n\t-run \t\t<file_name>                        \
-  \n\t-suspend \t<process_id>                     \
-  \n\t-resume \t<process_id>                      \
-  \n\t-kill \t\t<process_id>"
-
-struct CommandType
-{
+typedef void (*CommandFunc)(InputBuffer& inputBuff);
+struct CommandType {
   char name[BUFFER_SIZE];
-  void (*func)(InputBuffer *inputBuff);
+  CommandFunc function;
 };
 
-bool readTokens(InputBuffer *inputBuff);
-void printAllCommands(InputBuffer *inputBuff);
-char *getToken(InputBuffer *inputBuff, uint8_t tokenIndex);
-bool doCommand(CommandType *commands, char *commandName, InputBuffer *input);
+/// @brief reads the input text from terminal and gets the indexes of the input tokens
+/// @param inputBuffer buffer that stores metadata about the input and the tokens of that input
+/// @return true is done reading line, false if not
+bool readTokens(/*out*/InputBuffer& inputBuffer);
+
+/// @brief get the n'th token from inputBuffer
+/// @param inputBuff 
+/// @param tokenIndex 
+/// @return a ConstSpan of raw chars of Token
+ConstSpan<char> getToken(const InputBuffer& inputBuff, const uint8_t tokenIndex);
+bool doCommand(ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input);
 
 #endif
