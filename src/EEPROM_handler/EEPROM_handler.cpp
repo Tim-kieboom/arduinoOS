@@ -4,41 +4,56 @@ Tim Kieboom 1025003
 #include "EEPROM_handler.h"
 #include "../lib/TKardunio/TKarduino.h"
 #include "InputBuffer/InputBuffer.h"
-
 inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success);
 
 static EEPROM_Data eepromData = EEPROM_Data();
 
-void commandFunc_store(InputBuffer& input) {
-  if(input.tokenEndIndexes_top == 4)
-  {
-    Serial.print("command only should have 3 arguments you have: '");
-    Serial.print(input.tokenEndIndexes_top);
-    Serial.println("' arguments");
-    return;
-  }
-  
+void commandFunc_store(InputBuffer &input) {
   uint16_t newAddress = ++eepromData.lastAddress;
   FAT newFAT = FAT();
-  
-  newFAT.address = newAddress;
-  newFAT.fileName = (char*)getToken(input, 1).copy_asCstr();
-  bool parseSuccess = false;
-  newFAT.size = charSpanTo_uint8(getToken(input, 2), /*out*/parseSuccess);
 
-  if(!parseSuccess) {
+  newFAT.address = newAddress;
+
+  ConstSpan<char> nameSpan = getToken(input, 1);
+  if(nameSpan.len() > 11) {
+    Serial.println("!!error!! fileName is to long can only be 11 chars");
+    return;
+  }
+  newFAT.fileName = (char *)nameSpan.copy_asCstr();
+  
+  bool parseSuccess = false;
+  newFAT.size = charSpanTo_uint8(getToken(input, 2), /*out*/ parseSuccess);
+
+  if (!parseSuccess) {
     Serial.println("!!error!! while parsing file size, uint8 overflow caught (number has to be < 256), store not successfull");
     return;
   }
 
-  Serial.print("fileName: ");
-  Serial.println(newFAT.fileName);
+  Serial.println("successfully stored new file");
+}
 
-  Serial.print("size: ");
-  Serial.println(newFAT.size);
+void commandFunc_clearEEPROM(InputBuffer& input) {
+  Serial.flush();
+  Serial.print("are you sure by doing this you delete ALL your disk data yes(y)/no(n) >> ");
+  while(Serial.available() <= 0) {}
+  
+  char firstChar = Serial.read();
+  Serial.println();
+  if(firstChar != 'y') {
+    Serial.println("clear cancelled");
+    return;
+  }
 
-  Serial.print("size: ");
-  Serial.println(newFAT.size);
+  for(uint16_t i = 0; i < EEPROM.length(); i++)
+    EEPROM.write(i, 0);
+
+  Serial.println("disk successfully cleared");
+}
+
+bool writeFATEntry(FAT& fat) {
+  EEPROM.put(eepromData.lastAddress, fat);
+  eepromData.lastAddress += sizeof(FAT);
+  return true;
 }
 
 inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success) {

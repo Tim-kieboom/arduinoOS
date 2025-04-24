@@ -150,6 +150,17 @@ public:
         buffer = nullptr;
     }
 
+    T* ptr() {
+        return buffer;
+    }
+
+    void setRange(SmartArray<T>& from) {
+        ASSERT(buffer != nullptr);
+
+        for(size_t i = 0; i < min(from.len(), _len); i++)
+            buffer[i] = from[i];
+    }
+
     bool isEmpty() const {
         return buffer == nullptr || _len <= 0;
     }

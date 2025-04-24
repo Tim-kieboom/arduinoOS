@@ -9,9 +9,9 @@ Tim Kieboom 1025003
 
 // To enable assertions (debug mode), leave the line below uncommented.
 // To disable assertions (release mode), comment out the line below.
-#define ENABLE_ASSERT
+#define ENABLE_TK_DEBUGGING
 
-#ifdef ENABLE_ASSERT
+#ifdef ENABLE_TK_DEBUGGING
 /**
  * @brief Asserts that a condition is true in debug builds.
  *
@@ -25,6 +25,7 @@ Tim Kieboom 1025003
     Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                                           \
     Serial.print("Assertion '"); Serial.print(#condition); Serial.println("' failed! at:");     \
     Serial.print("file: "); Serial.println(__FILE__);                                           \
+    Serial.print("func: "); Serial.println(__func__);                                           \
     Serial.print("line: "); Serial.println(__LINE__);                                           \
     Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                                           \
     delay(500); /*give micro controller some time to print out assert*/                         \
@@ -38,7 +39,7 @@ Tim Kieboom 1025003
 #define ASSERT(condition) ((void)0)
 #endif
 
-#ifdef ENABLE_ASSERT
+#ifdef ENABLE_TK_DEBUGGING
 /**
  * @brief Assert that a condition is true in debug builds, with a custom message.
  *
@@ -53,6 +54,7 @@ Tim Kieboom 1025003
     Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                       \
     Serial.println("Assertion '" +String(#condition)+ "' failed! at:");     \
     Serial.println(__FILE__);                                               \
+    Serial.print("func: "); Serial.println(__func__);                       \
     Serial.print("line: "); Serial.println(__LINE__);                       \
     Serial.print("msg: "); Serial.println(message);                         \
     Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                       \

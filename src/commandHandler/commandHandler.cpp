@@ -10,27 +10,28 @@ inline bool addEndIndex(/*out*/InputBuffer& input, int index);
 inline bool resetInputBuffer(/*out*/InputBuffer& inputBuffer);
 inline bool isEndOfLine(const char ch);
 inline bool isEndOfToken(const char ch);
+inline bool isUpArrow(InputBuffer& input);
 
 static constexpr const char* ALL_COMANDS_STRING =
 "all commands:"                                    
   "\n\t-help"                                       
   "\n\t-store \t\t<file_name> <file_size> <data>"   
   "\n\t-write \t\t<file_name>"   
-  "\n\t-dir"   
   "\n\t-retrieve \t<file_name>"                     
   "\n\t-erase \t\t<file_name>"                      
-  "\n\t-file"                                       
+  "\n\t-files"                                       
   "\n\t-freespace"                                  
   "\n\t-run \t\t<file_name>"                        
   "\n\t-suspend \t<process_id>"                     
   "\n\t-resume \t<process_id>"                     
-  "\n\t-kill \t\t<process_id>";
+  "\n\t-kill \t\t<process_id>"
+  "\n\t-clearall";
 
 void commandFunc_printAllCommands(InputBuffer& input) {
-    if(input.tokenEndIndexes_top == 1)
+    if(input.tokenEndIndexes_top != 1)
     {
         Serial.print("command only should have 0 arguments you have: '");
-        Serial.print(input.tokenEndIndexes_top);
+        Serial.print(min((int)input.tokenEndIndexes_top-1, 1));
         Serial.println("' arguments");
         return;
     }
@@ -39,6 +40,10 @@ void commandFunc_printAllCommands(InputBuffer& input) {
 }
 
 bool readTokens(/*out*/InputBuffer& input) {
+    static SmartArray<char> prev = SmartArray<char>(INPUT_BUFFER_SIZE);
+    static uint8_t prevEndTokensIndexes[TOKEN_END_INDEXES_SIZE];
+    static uint8_t prevEndTokensIndexes_top = 0;
+
     if(input.shouldResetBuffer) {
         if(!resetInputBuffer(/*out*/input))
             return false;
@@ -51,11 +56,30 @@ bool readTokens(/*out*/InputBuffer& input) {
 
     input.buffer[input.currentIndex++] = ch;
 
-    if (isEndOfLine(ch)) {       
-        if(checkBufferOverflow(input, input.currentIndex+1))
+    if (isEndOfLine(ch)) {
+        if(input.currentIndex == 2) {
+            input.shouldResetBuffer = true;
+            Serial.flush();
+            Serial.print(">> ");
             return false;
+        }
 
-        input.buffer[input.currentIndex+1] = '\0';
+        if(isUpArrow(input)) {
+            input.buffer.setRange(prev);
+            memcpy(input.tokenEndIndexes, prevEndTokensIndexes, TOKEN_END_INDEXES_SIZE);
+            input.tokenEndIndexes_top = prevEndTokensIndexes_top;
+        }
+        else {
+            if(checkBufferOverflow(input, input.currentIndex+1))
+                return false;
+
+            input.buffer[input.currentIndex+1] = '\0';
+
+            prev.setRange(input.buffer);
+            memcpy(prevEndTokensIndexes, input.tokenEndIndexes, TOKEN_END_INDEXES_SIZE);
+            prevEndTokensIndexes_top = input.tokenEndIndexes_top;
+        }
+
         input.shouldResetBuffer = true;
         return true;
     }
@@ -105,6 +129,11 @@ bool doCommand(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandN
     }
 
     return false;
+}
+
+inline bool isUpArrow(InputBuffer& input) {
+    constexpr char UpArrow[] = {27, 91, 'A'}; 
+    return input.buffer.len() >= 3 && input.buffer.constSpan(0,2).equal(UpArrow);
 }
 
 inline bool addEndIndex(/*out*/InputBuffer& input, int index)

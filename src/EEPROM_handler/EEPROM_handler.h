@@ -9,6 +9,9 @@ Tim Kieboom 1025003
 #include <EEPROM.h>
 #include "./commandHandler/commandHandler.h"
 
+constexpr size_t EEPROM_HEADER_FAT_LEN_INDEX = 0;
+constexpr size_t EEPROM_HEADER_SIZE = 1;
+
 struct File {
   char fileName[BUFFER_SIZE];
   uint8_t size;
@@ -16,7 +19,7 @@ struct File {
 };
 
 struct EEPROM_Data {
-  uint16_t lastAddress = 0;
+  uint16_t lastAddress = EEPROM_HEADER_SIZE;
 };
 
 struct FAT {
@@ -26,6 +29,6 @@ struct FAT {
 };
 
 void commandFunc_store(InputBuffer& inputBuff);
-
+void commandFunc_clearEEPROM(InputBuffer& inputBuff);
 
 #endif

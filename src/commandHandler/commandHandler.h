@@ -9,6 +9,8 @@ Tim Kieboom 1025003
 #include "../lib/TKardunio/TKarduino.h"
 #include "../InputBuffer/InputBuffer.h"
 
+#define INPUT_BUFFER_SIZE 35
+
 void commandFunc_printAllCommands(InputBuffer& inputBuff);
 
 typedef void (*CommandFunc)(InputBuffer& inputBuff);
