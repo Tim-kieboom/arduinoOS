@@ -5,8 +5,9 @@ Tim Kieboom 1025003
 #include "../lib/TKardunio/TKarduino.h"
 #include "InputBuffer/InputBuffer.h"
 
+inline bool checkBufferOverflow(InputBuffer& input, const int index);
 inline bool addEndIndex(/*out*/uint8_t* tokenEndIndexes, int value);
-inline void resetInputBuffer(/*out*/InputBuffer& inputBuffer);
+inline bool resetInputBuffer(/*out*/InputBuffer& inputBuffer);
 inline bool isEndOfLine(const char ch);
 inline bool isEndOfToken(const char ch);
 
@@ -14,6 +15,8 @@ static constexpr const char* ALL_COMANDS_STRING =
 "all commands:"                                    
   "\n\t-help"                                       
   "\n\t-store \t\t<file_name> <file_size> <data>"   
+  "\n\t-write \t\t<file_name>"   
+  "\n\t-dir"   
   "\n\t-retrieve \t<file_name>"                     
   "\n\t-erase \t\t<file_name>"                      
   "\n\t-file"                                       
@@ -30,14 +33,21 @@ void commandFunc_printAllCommands(InputBuffer& inputBuff) {
 bool readTokens(/*out*/InputBuffer& input) {
     
     if(input.shouldResetBuffer) {
-        resetInputBuffer(/*out*/input);
+        if(!resetInputBuffer(/*out*/input))
+            return false;
     }
     
     char ch = Serial.read();
 
+    if(checkBufferOverflow(input, input.currentIndex))
+        return false;
+
     input.buffer[input.currentIndex++] = ch;
 
     if (isEndOfLine(ch)) {
+        if(checkBufferOverflow(input, input.currentIndex+1))
+            return false;
+
         input.buffer[input.currentIndex+1] = '\0';
         input.shouldResetBuffer = true;
         return true;
@@ -49,24 +59,38 @@ bool readTokens(/*out*/InputBuffer& input) {
     return false;
 }
 
+inline bool checkBufferOverflow(InputBuffer& input, const int index)  {
+    if(input.currentIndex >= input.buffer.len()) {
+        Serial.println();
+        Serial.println("!!error!! input is bigger then buffer try inputting again");
+        Serial.print(">> ");
+        Serial.flush();
+        resetInputBuffer(input);
+        return true;
+    }
+
+    return false;
+}
+
 ConstSpan<char> getToken(const InputBuffer& input, const uint8_t tokenIndex) {
     ASSERT_SMALLER(tokenIndex, TOKEN_END_INDEXES_SIZE);
     const uint8_t len = input.tokenEndIndexes[tokenIndex] + 1;
-    ASSERT_NQ(tokenIndex, 1);
+    ASSERT_PRINT(len > 1, "token is empty");
 
     uint8_t offset = (tokenIndex > 0) ? input.tokenEndIndexes[tokenIndex - 1] + 2 : 0;
-
+    
     return input.buffer.constSpan(offset, len);
 }
 
-bool doCommand(ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input) {
+bool doCommand(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input) {
     ASSERT(!commands.isEmpty());
-    ASSERT(!commandName.isEmpty());
+    if(commandName.isEmpty())
+        return false;
 
     for(size_t i = 0; i < commands.len(); i++ )
     {
         const CommandType& command = commands[i];
-        if(STR_EQUAL(commandName.copy_asCstr(), command.name))
+        if(commandName.equal(command.name))
         {
             command.function(input);
             return true;
@@ -97,19 +121,12 @@ inline bool isEndOfLine(const char ch) {
     return ch == '\n' || ch == '\0';
 }
 
-inline void resetInputBuffer(/*out*/InputBuffer& inputBuffer) {
-    
-    // SmartArray<char>& buffer = inputBuffer.buffer;
-    // if (buffer.isEmpty()) {
-    //     buffer.free();
-    // }
-
-    // buffer.resize(Serial.available());
-
+inline bool resetInputBuffer(/*out*/InputBuffer& input) {
     for(int i = 0; i < TOKEN_END_INDEXES_SIZE; i++) {
-        inputBuffer.tokenEndIndexes[i] = 0;
+        input.tokenEndIndexes[i] = 0;
     }
 
-    inputBuffer.shouldResetBuffer = false;
-    inputBuffer.currentIndex = 0;
+    input.shouldResetBuffer = false;
+    input.currentIndex = 0;
+    return true;
 }

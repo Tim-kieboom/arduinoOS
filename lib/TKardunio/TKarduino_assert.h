@@ -20,15 +20,16 @@ Tim Kieboom 1025003
  *
  * @param condition Expression to evaluate. If false, triggers the assertion failure.
  */
-#define ASSERT(condition) if (!(condition)) { \
-    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"); \
-    Serial.print("Assertion '"); Serial.print(#condition); Serial.println("' failed! at:"); \
-    Serial.print("file: "); Serial.println(__FILE__); \
-    Serial.print("line: "); Serial.println(__LINE__); \
-    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"); \
-    delay(500); /*give micro controller some time to print out assert*/\
-    exit(1); /*panic!!*/\
-    while(1); /*while(1) is just for the compiler plz ignore*/\
+#define ASSERT(condition) if (!(condition)) {                                                   \
+    Serial.println();                                                                           \
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                                           \
+    Serial.print("Assertion '"); Serial.print(#condition); Serial.println("' failed! at:");     \
+    Serial.print("file: "); Serial.println(__FILE__);                                           \
+    Serial.print("line: "); Serial.println(__LINE__);                                           \
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                                           \
+    delay(500); /*give micro controller some time to print out assert*/                         \
+    exit(1); /*panic!!*/                                                                        \
+    while(1); /*while(1) is just for the compiler plz ignore*/                                  \
 }
 #else
 /**
@@ -47,16 +48,17 @@ Tim Kieboom 1025003
  * @param condition Expression to evaluate. If false, triggers assertion failure.
  * @param message Custom message to print if assertion fails.
  */
-#define ASSERT_PRINT(condition, message) if (!(condition)) { \
-    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"); \
-    Serial.println("Assertion '" +String(#condition)+ "' failed! at:"); \
-    Serial.println(__FILE__); \
-    Serial.print("line: "); Serial.println(__LINE__); \
-    Serial.print("msg: "); Serial.println(message); \
-    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"); \
-    delay(500); /*give micro controller some time to print out assert*/\
-    exit(1); /*panic!!*/\
-    while(1); /*while(1) is just for the compiler plz ignore*/\
+#define ASSERT_PRINT(condition, message) if (!(condition)) {                \
+    Serial.println();                                                       \
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                       \
+    Serial.println("Assertion '" +String(#condition)+ "' failed! at:");     \
+    Serial.println(__FILE__);                                               \
+    Serial.print("line: "); Serial.println(__LINE__);                       \
+    Serial.print("msg: "); Serial.println(message);                         \
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");                       \
+    delay(500); /*give micro controller some time to print out assert*/     \
+    exit(1); /*panic!!*/                                                    \
+    while(1); /*while(1) is just for the compiler plz ignore*/              \
 }
 #else
 /**
@@ -73,7 +75,7 @@ Tim Kieboom 1025003
  */
 #define ASSERT_TODO ASSERT_PRINT(false, "not yet implemented")
 
-#define _ASSERT_CMP(a, cmp, b) ASSERT_PRINT(a cmp b, "'" + String(#a) + "' should " + String(#cmp) + " to '" + String(#b) + "' (values: " + String(a) + ", " + String(b) + ")")
+#define _ASSERT_CMP(a, cmp, invcmp, b) ASSERT_PRINT(a cmp b, "(values: '" + String(a) + "' " + String(#invcmp) + " '" + String(b) + "')")
 
 /**
  * @brief Asserts that two values are equal in debug builds.
@@ -84,7 +86,7 @@ Tim Kieboom 1025003
  * @param a First value to compare.
  * @param b Second value to compare.
  */
-#define ASSERT_EQ(a, b) _ASSERT_CMP(a, ==, b)
+#define ASSERT_EQ(a, b) _ASSERT_CMP(a, ==, !=, b)
 
 /**
  * @brief Asserts that two values are not equal in debug builds.
@@ -95,7 +97,7 @@ Tim Kieboom 1025003
  * @param a First value to compare.
  * @param b Second value to compare.
  */
-#define ASSERT_NQ(a, b) _ASSERT_CMP(a, !=, b)
+#define ASSERT_NQ(a, b) _ASSERT_CMP(a, !=, ==, b)
 
 /**
  * @brief Asserts that two values are smaller in debug builds.
@@ -106,7 +108,7 @@ Tim Kieboom 1025003
  * @param a First value to compare.
  * @param b Second value to compare.
  */
-#define ASSERT_SMALLER(a, b) _ASSERT_CMP(a, <, b)
+#define ASSERT_SMALLER(a, b) _ASSERT_CMP(a, <, >=, b)
 
 /**
  * @brief Asserts that two values are bigger in debug builds.
@@ -117,7 +119,7 @@ Tim Kieboom 1025003
  * @param a First value to compare.
  * @param b Second value to compare.
  */
-#define ASSERT_BIGGER(a, b) _ASSERT_CMP(a, >, b)
+#define ASSERT_BIGGER(a, b) _ASSERT_CMP(a, >, <=, b)
 
 #endif
 

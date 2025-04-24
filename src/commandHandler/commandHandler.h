@@ -27,6 +27,6 @@ bool readTokens(/*out*/InputBuffer& inputBuffer);
 /// @param tokenIndex 
 /// @return a ConstSpan of raw chars of Token
 ConstSpan<char> getToken(const InputBuffer& inputBuff, const uint8_t tokenIndex);
-bool doCommand(ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input);
+bool doCommand(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input);
 
 #endif

@@ -14,6 +14,12 @@ all commands:
     // creates a file and stores it in the FAT                  
     -store <file_name> <file_size> <data>
 
+    // creates a file and able to write lines
+    -write <file_name>
+
+    // print all files in FAT
+    -dir
+
     // get file
     -retrieve <file_name>  
 
@@ -39,6 +45,11 @@ all commands:
     -kill <process_id>
 */
 
-
+const CommandType _ptr_allCommands[] = {
+    {"help", &commandFunc_printAllCommands},
+    {"store", &commandFunc_store}
+};
+const size_t _len_allCommands = sizeof(_ptr_allCommands) / sizeof(CommandType);
+const ConstSpan<CommandType> allCommands = ConstSpan<CommandType>(_ptr_allCommands, 0, _len_allCommands);
 
 #endif
