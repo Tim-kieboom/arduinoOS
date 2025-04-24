@@ -19,7 +19,13 @@ struct File {
 };
 
 struct EEPROM_Data {
-  uint16_t lastAddress = EEPROM_HEADER_SIZE;
+  uint16_t lastAddress;
+
+  EEPROM_Data(uint16_t lastAddress)
+    : lastAddress(lastAddress)
+  {
+
+  }
 };
 
 struct FAT {
@@ -28,7 +34,7 @@ struct FAT {
   uint8_t size;
 };
 
-void commandFunc_store(InputBuffer& inputBuff);
-void commandFunc_clearEEPROM(InputBuffer& inputBuff);
+bool commandFunc_store(InputBuffer &input);
+bool commandFunc_clearEEPROM(InputBuffer& inputBuff);
 
 #endif

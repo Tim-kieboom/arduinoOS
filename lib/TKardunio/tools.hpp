@@ -11,9 +11,9 @@ struct is_same { static const bool value = false; };
 template<typename A>
 struct is_same<A, A> { static const bool value = true; };
 
-#include "./TKarduino_assert.h"
+#include "./assert.h"
 
-inline bool STR_EQUAL(const char* str1, const char* str2) {
+inline bool strEquals(const char* str1, const char* str2) {
     return strcmp(str1, str2) == 0;
 }
 /// @brief an imutable span of an array with length (THIS OBJECT DOES NOT DELETE THE PTR)

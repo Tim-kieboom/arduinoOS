@@ -27,16 +27,17 @@ static constexpr const char* ALL_COMANDS_STRING =
   "\n\t-kill \t\t<process_id>"
   "\n\t-clearall";
 
-void commandFunc_printAllCommands(InputBuffer& input) {
+bool commandFunc_printAllCommands(InputBuffer& input) {
     if(input.tokenEndIndexes_top != 1)
     {
         Serial.print("command only should have 0 arguments you have: '");
         Serial.print(min((int)input.tokenEndIndexes_top-1, 1));
         Serial.println("' arguments");
-        return;
+        return true;
     }
 
     Serial.println(ALL_COMANDS_STRING);
+    return true;
 }
 
 bool readTokens(/*out*/InputBuffer& input) {
@@ -113,22 +114,19 @@ ConstSpan<char> getToken(const InputBuffer& input, const uint8_t tokenIndex) {
     return input.buffer.constSpan(offset, len);
 }
 
-bool doCommand(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input) {
+CommandFunc getCommandFunction(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName) {
     ASSERT(!commands.isEmpty());
     if(commandName.isEmpty())
-        return false;
+        return nullptr;
 
     for(size_t i = 0; i < commands.len(); i++ )
     {
         const CommandType& command = commands[i];
         if(commandName.equal(command.name))
-        {
-            command.function(input);
-            return true;
-        }
+            return command.function;
     }
 
-    return false;
+    return nullptr;
 }
 
 inline bool isUpArrow(InputBuffer& input) {

@@ -11,9 +11,11 @@ Tim Kieboom 1025003
 
 #define INPUT_BUFFER_SIZE 35
 
-void commandFunc_printAllCommands(InputBuffer& inputBuff);
+bool commandFunc_printAllCommands(InputBuffer& inputBuff);
 
-typedef void (*CommandFunc)(InputBuffer& inputBuff);
+/// @brief abtract function ptr for all commands
+/// @returns true is process finished else false
+typedef bool (*CommandFunc)(InputBuffer& inputBuff);
 struct CommandType {
   char name[BUFFER_SIZE];
   CommandFunc function;
@@ -29,6 +31,6 @@ bool readTokens(/*out*/InputBuffer& inputBuffer);
 /// @param tokenIndex 
 /// @return a ConstSpan of raw chars of Token
 ConstSpan<char> getToken(const InputBuffer& inputBuff, const uint8_t tokenIndex);
-bool doCommand(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName, InputBuffer& input);
+CommandFunc getCommandFunction(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName);
 
 #endif
