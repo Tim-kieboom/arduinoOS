@@ -16,7 +16,7 @@ struct is_same<A, A> { static const bool value = true; };
 inline bool STR_EQUAL(const char* str1, const char* str2) {
     return strcmp(str1, str2) == 0;
 }
-/// @brief an imutable span of an array (THIS OBJECT DOES NOT DELTE THE PTR)
+/// @brief an imutable span of an array with length (THIS OBJECT DOES NOT DELETE THE PTR)
 /// @tparam T any type
 template<typename T>
 class ConstSpan {
@@ -51,7 +51,7 @@ public:
 
     const T& operator[](int index) const  {
         ASSERT(buffer != nullptr);
-        ASSERT_SMALLER(index, _len);
+        ASSERT_SMALLER((unsigned long)index, _len);
         return buffer[index];
     }
 
@@ -112,7 +112,7 @@ public:
     }
 };
 
-/// @brief an array with a type thats it (THIS OBJECT DOES NOT DELTE THE PTR)
+/// @brief an array and length (THIS OBJECT DOES NOT DELETE THE PTR)
 /// @tparam T any type
 template<typename T>
 class SmartArray {

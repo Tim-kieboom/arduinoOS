@@ -9,14 +9,22 @@ inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success);
 
 static EEPROM_Data eepromData = EEPROM_Data();
 
-void commandFunc_store(InputBuffer& inputBuff) {
+void commandFunc_store(InputBuffer& input) {
+  if(input.tokenEndIndexes_top == 4)
+  {
+    Serial.print("command only should have 3 arguments you have: '");
+    Serial.print(input.tokenEndIndexes_top);
+    Serial.println("' arguments");
+    return;
+  }
+  
   uint16_t newAddress = ++eepromData.lastAddress;
   FAT newFAT = FAT();
   
   newFAT.address = newAddress;
-  newFAT.fileName = (char*)getToken(inputBuff, 1).copy_asCstr();
+  newFAT.fileName = (char*)getToken(input, 1).copy_asCstr();
   bool parseSuccess = false;
-  newFAT.size = charSpanTo_uint8(getToken(inputBuff, 2), /*out*/parseSuccess);
+  newFAT.size = charSpanTo_uint8(getToken(input, 2), /*out*/parseSuccess);
 
   if(!parseSuccess) {
     Serial.println("!!error!! while parsing file size, uint8 overflow caught (number has to be < 256), store not successfull");
@@ -25,6 +33,9 @@ void commandFunc_store(InputBuffer& inputBuff) {
 
   Serial.print("fileName: ");
   Serial.println(newFAT.fileName);
+
+  Serial.print("size: ");
+  Serial.println(newFAT.size);
 
   Serial.print("size: ");
   Serial.println(newFAT.size);

@@ -3,7 +3,7 @@ Tim Kieboom 1025003
 */
 #include <Arduino.h>
 #include "allCommands.h"
-void readAndRunLine(/*out*/ InputBuffer& input);
+inline void readAndRunLine(/*out*/ InputBuffer& input);
 
 void setup() {
     Serial.begin(9600);
@@ -15,11 +15,12 @@ void setup() {
 void loop() {
     static InputBuffer input = InputBuffer(SmartArray<char>(25));
 
-    if (Serial.available() > 0)
+    if (Serial.available() > 0) {
         readAndRunLine(/*out*/ input);
+    }
 }
 
-void readAndRunLine(/*out*/ InputBuffer& input) {
+inline void readAndRunLine(/*out*/ InputBuffer& input) {
 
     bool isSuccess = readTokens(/*out*/ input);
     if(!isSuccess) 
@@ -31,6 +32,8 @@ void readAndRunLine(/*out*/ InputBuffer& input) {
 
     Serial.print(">> ");
 }
+
+
 
 
 

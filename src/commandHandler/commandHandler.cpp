@@ -6,7 +6,7 @@ Tim Kieboom 1025003
 #include "InputBuffer/InputBuffer.h"
 
 inline bool checkBufferOverflow(InputBuffer& input, const int index);
-inline bool addEndIndex(/*out*/uint8_t* tokenEndIndexes, int value);
+inline bool addEndIndex(/*out*/InputBuffer& input, int index);
 inline bool resetInputBuffer(/*out*/InputBuffer& inputBuffer);
 inline bool isEndOfLine(const char ch);
 inline bool isEndOfToken(const char ch);
@@ -26,17 +26,24 @@ static constexpr const char* ALL_COMANDS_STRING =
   "\n\t-resume \t<process_id>"                     
   "\n\t-kill \t\t<process_id>";
 
-void commandFunc_printAllCommands(InputBuffer& inputBuff) {
+void commandFunc_printAllCommands(InputBuffer& input) {
+    if(input.tokenEndIndexes_top == 1)
+    {
+        Serial.print("command only should have 0 arguments you have: '");
+        Serial.print(input.tokenEndIndexes_top);
+        Serial.println("' arguments");
+        return;
+    }
+
     Serial.println(ALL_COMANDS_STRING);
 }
 
 bool readTokens(/*out*/InputBuffer& input) {
-    
     if(input.shouldResetBuffer) {
         if(!resetInputBuffer(/*out*/input))
             return false;
     }
-    
+
     char ch = Serial.read();
 
     if(checkBufferOverflow(input, input.currentIndex))
@@ -44,7 +51,7 @@ bool readTokens(/*out*/InputBuffer& input) {
 
     input.buffer[input.currentIndex++] = ch;
 
-    if (isEndOfLine(ch)) {
+    if (isEndOfLine(ch)) {       
         if(checkBufferOverflow(input, input.currentIndex+1))
             return false;
 
@@ -54,7 +61,7 @@ bool readTokens(/*out*/InputBuffer& input) {
     }
 
     if (isEndOfToken(ch))
-        addEndIndex(/*out*/input.tokenEndIndexes, input.currentIndex - 2);
+        addEndIndex(/*out*/input, input.currentIndex - 2);
 
     return false;
 }
@@ -100,17 +107,14 @@ bool doCommand(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandN
     return false;
 }
 
-inline bool addEndIndex(/*out*/uint8_t* tokenEndIndexes, int index)
+inline bool addEndIndex(/*out*/InputBuffer& input, int index)
 {
-    for(int i = 0; i < TOKEN_END_INDEXES_SIZE; i++) {
-        if (tokenEndIndexes[i] != 0)
-            continue;
+    if(input.tokenEndIndexes_top >= sizeof(input.tokenEndIndexes))
+        return false;
 
-        tokenEndIndexes[i] = index;
-        return true;
-    }
+    input.tokenEndIndexes[input.tokenEndIndexes_top++] = index;
 
-    return false;
+    return true;
 }
 
 inline bool isEndOfToken(const char ch) {
@@ -127,6 +131,13 @@ inline bool resetInputBuffer(/*out*/InputBuffer& input) {
     }
 
     input.shouldResetBuffer = false;
+    input.tokenEndIndexes_top = 0;
     input.currentIndex = 0;
     return true;
 }
+
+
+
+
+
+
