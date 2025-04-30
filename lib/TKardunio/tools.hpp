@@ -16,149 +16,25 @@ struct is_same<A, A> { static const bool value = true; };
 inline bool strEquals(const char* str1, const char* str2) {
     return strcmp(str1, str2) == 0;
 }
-/// @brief an imutable span of an array with length (THIS OBJECT DOES NOT DELETE THE PTR)
-/// @tparam T any type
+
 template<typename T>
-class ConstSpan {
-private:
+class ConstSpan;
+template<typename T>
+class SmartArray;
+
+template<typename T>
+class BaseSmartArray {
+protected:
+    T* buffer;
     size_t _len;
 
 public:
-    const T* buffer;
-
-    ConstSpan() 
-        : _len(0), buffer(nullptr)
-    {
-
-    } 
-    ConstSpan(const T* buffer, size_t offset, size_t len) 
-        :  _len(len - offset), buffer(&buffer[offset])
-    {
-
-    }
-
     size_t len() const {
         return _len;
     }
 
     const T* ptr() const {
         return buffer;
-    }
-
-    bool isEmpty() const  {
-        return _len == 0;
-    }
-
-    const T& operator[](int index) const  {
-        ASSERT(buffer != nullptr);
-        ASSERT_SMALLER((unsigned long)index, _len);
-        return buffer[index];
-    }
-
-    const T* tryAt(int index, bool& ok) const {
-        ASSERT(buffer != nullptr);
-        if(index >= _len) {
-            ok = false;
-            return nullptr;
-        }
-
-        ok = true;
-        return &buffer[index];
-    }
-
-    T* copy() const {
-        ASSERT(buffer != nullptr);
-
-        T* buff = new T[_len];
-        for(int i = 0; i < _len; i++)
-            buff[i] = buffer[i];
-            
-        return buff;
-    }
-
-    bool equal(const ConstSpan<T>& other) const {
-        if(_len != other.len())
-            return false;
-        
-        return equal(other.ptr());
-    }
-
-    bool equal(const T* other) const { 
-        if(buffer == nullptr || other == nullptr)
-            return buffer == nullptr && other == nullptr;
-        
-        for(size_t i = 0; i < _len; i++)
-        {
-            if(buffer[i] != other[i])
-                return false;
-        }
-
-        return true;
-    }
-
-    /// @brief puts span in a char array and adds '\0' at the end only for [T=char]
-    /// @return c_str of span
-    const char* copy_asCstr() const {
-        static_assert(is_same<T, char>::value, "copy_asCstr() only available for ConstSpan<char>");
-
-        ASSERT(buffer != nullptr);
-
-        char* str = new char[_len + 1];
-        for(size_t i = 0; i < _len; i++)
-            str[i] = buffer[i];
-            
-        str[_len] = '\0';
-        return str;
-    }
-};
-
-/// @brief an array and length (THIS OBJECT DOES NOT DELETE THE PTR)
-/// @tparam T any type
-template<typename T>
-class SmartArray {
-private:
-    size_t _len;
-    T* buffer;
-public:
-
-    SmartArray()
-        : _len(0), buffer(nullptr) 
-    {
-
-    } 
-
-    SmartArray(size_t len) 
-        : _len(len), buffer(new T[len])
-    {
-
-    }
-
-    SmartArray(T* buffer, size_t len) 
-        : _len(len), buffer(buffer)
-    {
-
-    }
-
-    size_t len() const {
-        return _len;
-    }
-
-    void free() {
-        if(buffer != nullptr)
-            delete[] buffer;
-
-        buffer = nullptr;
-    }
-
-    T* ptr() {
-        return buffer;
-    }
-
-    void setRange(SmartArray<T>& from) {
-        ASSERT(buffer != nullptr);
-
-        for(size_t i = 0; i < min(from.len(), _len); i++)
-            buffer[i] = from[i];
     }
 
     bool isEmpty() const {
@@ -181,6 +57,7 @@ public:
         ASSERT(buffer != nullptr);
 
         T* buff = new T[_len];
+        ASSERT_ALLOC(buff);
         for(int i = 0; i < _len; i++)
             buff[i] = buffer[i];
             
@@ -195,6 +72,7 @@ public:
         ASSERT(buffer != nullptr);
 
         char* str = new char[_len + 1];
+        ASSERT_ALLOC(str);
         for(size_t i = 0; i < _len; i++)
             str[i] = buffer[i];
             
@@ -202,26 +80,43 @@ public:
         return str;
     }
 
-    void resize(int newLen) {
-        ASSERT_BIGGER(newLen, 0);
-        T* buff = new T[newLen];
-        for(size_t i = 0; i < min(newLen, _len); i++)
-            buff[i] = buffer[i];
+    bool equals(const SmartArray<T>& other) const {
+        if(_len != other.len())
+            return false;
         
-        if(buffer != nullptr)    
-            delete[] buffer;
-        
-        buffer = buff; 
-        _len = newLen;
+        return equals(other.ptr(), other.len());
     }
 
-    T& operator[](int index) {
+    bool equals(const ConstSpan<T>& other) const {
+        if(_len != other.len())
+            return false;
+        
+        return equals(other.ptr(), other.len());
+    }
+
+    bool equals(const T* other, size_t len) const { 
+        if(buffer == nullptr || other == nullptr)
+            return buffer == nullptr && other == nullptr;
+        
+        if(len != _len)
+            return false;
+
+        for(size_t i = 0; i < _len; i++)
+        {
+            if(buffer[i] != other[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    const T& operator[](int index) const  {
         ASSERT(buffer != nullptr);
         ASSERT_SMALLER((unsigned long)index, _len);
         return buffer[index];
     }
 
-    T* tryAt(int index, bool& ok) {
+    const T* tryAt(int index, bool& ok) const {
         ASSERT(buffer != nullptr);
         if(index >= _len) {
             ok = false;
@@ -230,6 +125,70 @@ public:
 
         ok = true;
         return &buffer[index];
+    }
+};
+
+/// @brief an imutable span of an array with length (THIS OBJECT DOES NOT DELETE THE PTR)
+/// @tparam T any type
+template<typename T>
+class ConstSpan : public BaseSmartArray<T> {
+public:
+
+    ConstSpan() {
+        this->buffer = nullptr;
+        this->_len = 0;
+    } 
+
+    ConstSpan(const T* buffer, size_t offset, size_t length) {
+        this->buffer = const_cast<T*>(buffer) + offset;
+        this->_len = length - offset;
+    }
+};
+
+/// @brief an array and length (THIS OBJECT DOES NOT DELETE THE PTR)
+/// @tparam T any type
+template<typename T>
+class SmartArray : public BaseSmartArray<T> {
+public:
+
+    SmartArray() {
+        this->buffer = nullptr;
+        this->_len = 0;
+    } 
+
+    SmartArray(size_t len) {
+        this->buffer = new T[len];
+        ASSERT_ALLOC(this->buffer);
+        this->_len = len;
+    }
+
+    SmartArray(T* buffer, size_t len) {
+        this->buffer = buffer;
+        this->_len = len;
+    }
+
+    T* mutPtr() {
+        return this->buffer;
+    }
+
+    void free() {
+        if(this->buffer != nullptr)
+            delete[] this->buffer;
+
+        this->buffer = nullptr;
+    }
+
+    void setRange(SmartArray<T>& from) {
+        ASSERT(this->buffer != nullptr);
+
+        for(size_t i = 0; i < min(from.len(), this->_len); i++)
+            this->buffer[i] = from[i];
+    }
+
+    T& operator[](int index) {
+        ASSERT(this->buffer != nullptr);
+        ASSERT_SMALLER((unsigned long)index, this->_len);
+        return this->buffer[index];
     }
 };
 

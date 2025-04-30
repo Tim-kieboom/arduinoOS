@@ -14,9 +14,6 @@ all commands:
     // creates a file and stores it in the FAT                  
     -store <file_name> <file_size> <data>
 
-    // creates a file and able to write lines
-    -write <file_name>
-
     // get file
     -retrieve <file_name>  
 
@@ -42,13 +39,18 @@ all commands:
     -kill <process_id>
 
     // clear WHOLE EEPROM
-    -clearall
+    -clear
+
+    -restart
 */
 
 const CommandType _ptr_allCommands[] = {
     {"help", &commandFunc_printAllCommands},
     {"store", &commandFunc_store},
-    {"clearall", &commandFunc_clearEEPROM}
+    {"clearall", &commandFunc_clearEEPROM},
+    {"restart", &commandFunc_restart},
+
+    {"temp", &commandFunc_temp}
 };
 const size_t _len_allCommands = sizeof(_ptr_allCommands) / sizeof(CommandType);
 const ConstSpan<CommandType> allCommands = ConstSpan<CommandType>(_ptr_allCommands, 0, _len_allCommands);

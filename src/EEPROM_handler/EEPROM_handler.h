@@ -12,6 +12,8 @@ Tim Kieboom 1025003
 constexpr size_t EEPROM_HEADER_FAT_LEN_INDEX = 0;
 constexpr size_t EEPROM_HEADER_SIZE = 1;
 
+constexpr uint8_t FAT_MAX_NUM_FILES = 2;
+
 struct File {
   char fileName[BUFFER_SIZE];
   uint8_t size;
@@ -19,13 +21,10 @@ struct File {
 };
 
 struct EEPROM_Data {
-  uint16_t lastAddress;
+  int16_t lastAddress = -1;
 
-  EEPROM_Data(uint16_t lastAddress)
-    : lastAddress(lastAddress)
-  {
-
-  }
+  EEPROM_Data(int16_t lastAddress)
+    : lastAddress(lastAddress) { }
 };
 
 struct FAT {
@@ -34,7 +33,7 @@ struct FAT {
   uint8_t size;
 };
 
-bool commandFunc_store(InputBuffer &input);
-bool commandFunc_clearEEPROM(InputBuffer& inputBuff);
-
+bool commandFunc_temp(InputBuffer &input);
+bool commandFunc_store(InputBuffer& input);
+bool commandFunc_clearEEPROM(InputBuffer &input);
 #endif

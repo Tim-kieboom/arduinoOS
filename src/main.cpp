@@ -8,12 +8,22 @@ inline void readAndRunLine(/*out*/ InputBuffer& input, /*out*/CommandFunc& curre
 void setup() {
     Serial.begin(9600);
     delay(500);
-    Serial.println("starting TKArduinoOS type 'help' for more information");
-    Serial.print(">> ");
+    Serial.println(F("starting TKArduinoOS type 'help' for more information"));
+    Serial.println(F("welkom my friend :)"));
+
+    IF_DEBUG(
+        uint8_t len = 0;
+        EEPROM.get(EEPROM_HEADER_FAT_LEN_INDEX, /*out*/len);
+        Serial.print(F("(debug only) current FAT.len: ")); 
+        Serial.println(len);
+    )
+    delay(500);
+
+    Serial.print(F(">> "));
 }
 
 void loop() {
-    static InputBuffer input = InputBuffer(SmartArray<char>(30));
+    static InputBuffer input = InputBuffer(INPUT_BUFFER_SIZE);
     static CommandFunc currentCommand = nullptr;
 
     if (Serial.available() > 0) {
@@ -25,10 +35,9 @@ void loop() {
 
     if(currentCommand) {
         bool isDone = currentCommand(input);
-        if(isDone)
-        {
+        if(isDone) {
             currentCommand = nullptr;
-            Serial.print(">> ");
+            Serial.print(F(">> "));
         }
     }
 } 
@@ -40,13 +49,12 @@ inline void readAndRunLine(/*out*/ InputBuffer& input, /*out*/CommandFunc& curre
 
     ConstSpan<char> commandName = getToken(input, 0);
     CommandFunc func = getCommandFunction(allCommands, commandName);
-    if(!func) {
-        Serial.println("!!error!! command is not found type 'help' to see a list of all commands");
-        Serial.print(">> ");
+    if(func == nullptr) {
+        Serial.println(F("!!error!! command not found 'help' to see all commands"));
+        Serial.print(F(">> "));
         return;
     }
     currentCommand = func;
-    Serial.print(">> ");
 }
 
 

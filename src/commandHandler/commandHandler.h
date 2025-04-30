@@ -12,6 +12,7 @@ Tim Kieboom 1025003
 #define INPUT_BUFFER_SIZE 35
 
 bool commandFunc_printAllCommands(InputBuffer& inputBuff);
+bool commandFunc_restart(InputBuffer& inputBuff);
 
 /// @brief abtract function ptr for all commands
 /// @returns true is process finished else false
