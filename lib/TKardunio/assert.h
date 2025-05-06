@@ -6,7 +6,7 @@ Tim Kieboom 1025003
 #pragma once
 
 #include <Arduino.h>
-#include "indebug.h"
+#include "debug.h"
 
 #ifdef ARDUINO_AVR_UNO
 #define RESET_ARDUINO asm volatile(" jmp 0 ")
@@ -84,7 +84,7 @@ Tim Kieboom 1025003
  */
 #define ASSERT_ALLOC(ptr) ASSERT_PRINT(ptr != NULL, F("alloc failed"))
 
-#define _ASSERT_CMP(a, cmp, b) ASSERT_PRINT(a cmp b, "(values: '" + String(a) + "', '" + String(b) + "')")
+#define _ASSERT_CMP(a, cmp, b) ASSERT_PRINT(a cmp b, "(left: '" + String(a) + "', is not " + String(#cmp) + "to/then right: '" + String(b) + "')")
 
 /**
  * @brief Asserts that two values are equal in debug builds.

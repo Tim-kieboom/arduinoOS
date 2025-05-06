@@ -29,15 +29,15 @@ protected:
     size_t _len;
 
 public:
-    size_t len() const {
+    constexpr size_t len() const {
         return _len;
     }
 
-    const T* ptr() const {
+    constexpr T* ptr() const {
         return buffer;
     }
 
-    bool isEmpty() const {
+    constexpr bool isEmpty() const {
         return buffer == nullptr || _len <= 0;
     }
 
@@ -54,7 +54,8 @@ public:
     }
 
     T* copy() const {
-        ASSERT(buffer != nullptr);
+        if(buffer == nullptr)
+            return nullptr;
 
         T* buff = new T[_len];
         ASSERT_ALLOC(buff);
@@ -69,7 +70,8 @@ public:
     const char* copy_asCstr() const {
         static_assert(is_same<T, char>::value, "copy_asCstr() only available for ConstSpan<char>");
 
-        ASSERT(buffer != nullptr);
+        if(buffer == nullptr)
+            return nullptr;
 
         char* str = new char[_len + 1];
         ASSERT_ALLOC(str);
@@ -110,7 +112,7 @@ public:
         return true;
     }
 
-    const T& operator[](int index) const  {
+    IF_DEBUG_ELSE(const, constexpr) T& operator[](int index) const {
         ASSERT(buffer != nullptr);
         ASSERT_SMALLER((unsigned long)index, _len);
         return buffer[index];
@@ -176,6 +178,7 @@ public:
             delete[] this->buffer;
 
         this->buffer = nullptr;
+        this->_len = 0;
     }
 
     void setRange(SmartArray<T>& from) {

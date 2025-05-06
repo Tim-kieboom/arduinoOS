@@ -11,12 +11,16 @@ Tim Kieboom 1025003
 
 #define INPUT_BUFFER_SIZE 35
 
-bool commandFunc_printAllCommands(InputBuffer& inputBuff);
-bool commandFunc_restart(InputBuffer& inputBuff);
+typedef bool Task;
+constexpr Task Done = true;
+constexpr Task NotDone = true;
+
+Task commandFunc_printAllCommands(InputBuffer& inputBuff);
+Task commandFunc_restart(InputBuffer& inputBuff);
 
 /// @brief abtract function ptr for all commands
 /// @returns true is process finished else false
-typedef bool (*CommandFunc)(InputBuffer& inputBuff);
+typedef Task (*CommandFunc)(InputBuffer& inputBuff);
 struct CommandType {
   char name[BUFFER_SIZE];
   CommandFunc function;

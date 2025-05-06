@@ -47,10 +47,11 @@ all commands:
 const CommandType _ptr_allCommands[] = {
     {"help", &commandFunc_printAllCommands},
     {"store", &commandFunc_store},
-    {"clearall", &commandFunc_clearEEPROM},
+    {"retrieve", &commandFunc_retrieve}, //todo
+    {"files", &commandFunc_files},
+    {"freespace", &commandFunc_freespace}, //todo
+    {"clearall", &commandFunc_clearall},
     {"restart", &commandFunc_restart},
-
-    {"temp", &commandFunc_temp}
 };
 const size_t _len_allCommands = sizeof(_ptr_allCommands) / sizeof(CommandType);
 const ConstSpan<CommandType> allCommands = ConstSpan<CommandType>(_ptr_allCommands, 0, _len_allCommands);

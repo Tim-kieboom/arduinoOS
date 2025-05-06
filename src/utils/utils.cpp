@@ -1,3 +1,6 @@
+/*
+Tim Kieboom 1025003
+*/
 #include "utils.h"
 
 bool checkArguments(InputBuffer &input, int shouldBe) {

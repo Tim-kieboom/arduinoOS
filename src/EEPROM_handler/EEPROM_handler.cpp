@@ -4,90 +4,139 @@ Tim Kieboom 1025003
 #include "EEPROM_handler.h"
 #include "../lib/TKardunio/TKarduino.h"
 #include "InputBuffer/InputBuffer.h"
+#include "hasFileStore/hasFileStore.h"
 #include <utils/utils.h>
-inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success);
-bool doesNameExist(const char* name, /*out*/bool& exist);
-inline int getFATEntry_index(int index);
-bool readFATEntry(int index, FAT& fat);
-bool writeFATEntry(const FAT& fat);
 inline uint8_t getFATLength();
+inline int getFATEntry_index(int index);
+inline bool writeFATEntry(const FAT& fat);
+inline uint8_t getFATEntry_size(int index);
+inline uint16_t getFATEntry_addres(int index);
+inline bool readFATEntry(int index, FAT& fat);
+bool doesNameExist(const char* name, /*out*/bool& exist);
+inline void getFATEntry_name(int index, /*out*/char* name, uint8_t len, bool printableName = false);
+inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success);
 
 static EEPROM_Data eepromData = EEPROM_Data(
-  getFATEntry_index(getFATLength()-1)
+  getFATLength()-1
 );
 
-bool commandFunc_temp(InputBuffer &input) {
-  uint8_t len = 0;
-  EEPROM.get(EEPROM_HEADER_FAT_LEN_INDEX, /*out*/len);
-  Serial.print(F("(debug only) current FAT.len: ")); 
-  Serial.println(len);
-  
-  return true;
-}
-
-bool commandFunc_store(InputBuffer &input)
-{
+Task commandFunc_store(InputBuffer &input) {
   static int processId = 0;
   static FAT fat = FAT();
 
-  if (processId == 0)
-  {
+  if (processId == 0) {
     if (!checkArguments(input, 3))
-      return true;
+      return Done;
 
     fat.address = eepromData.lastAddress + 1;
 
     ConstSpan<char> nameSpan = getToken(input, 1);
-    if (nameSpan.len() > 11) {
-      Serial.println(F("!!error!! name of file is to big file names can not be bigger then 11 symbools"));
+
+    if (nameSpan.isEmpty()) {
+      Serial.println(F("!!error!! name is empty"));
       processId = 0;
       fat = FAT();
-      return true;
+      return Done;
     }
-    fat.fileName = (char *)nameSpan.copy_asCstr();
+    else if (nameSpan.len() > 11) {
+      Serial.println(F("!!error!! name of file is to big, file names can not be bigger then 11 symbools"));
+      processId = 0;
+      fat = FAT();
+      return Done;
+    }
+    fat.fillName(nameSpan);
+    Serial.println(fat.fileName);
 
     bool parseSuccess = false;
     fat.size = charSpanTo_uint8(getToken(input, 2), /*out*/ parseSuccess);
+    DEBUG_PRINTF("(debug only) file.name: %s\n", fat.fileName);
+    DEBUG_PRINTF("(debug only) file.size: %d\n", fat.size);
+    DEBUG_PRINTF("(debug only) file.address: %d\n", fat.address);
+    int fileIndex = FileStore::getFirstEmpty();
+  
+    DEBUG_PRINT(F("(debug only)firstEmpty index: "));
+    DEBUG_PRINTLN(fileIndex);
 
     if (!parseSuccess) {
       Serial.println(F("!!error!! while trying to parse number in store command: uint8 overflow caught (number has an invalid symbools or is to big)"));
       processId = 0;
       fat = FAT();
-      return true;
+      return Done;
     }
 
     processId++;
-    return false;
+    return NotDone;
   }
 
   bool exists = false;
-  bool isDone = doesNameExist(fat.fileName, /*out*/ exists);
+  Task nameTask = doesNameExist(fat.fileName, /*out*/exists);
 
-  if (isDone)
-  {
-    if (!exists)
-    {
-      bool isSuccess = writeFATEntry(fat);
+  if(nameTask == Done) {
+
+    if (exists) {
+      Serial.println(F("!!error!! fileName already exists"));
       processId = 0;
       fat = FAT();
-      if(isSuccess)
-        Serial.println(F("successfully stored new file"));
-      return true;
+      return Done;
     }
-
-    Serial.println(F("!!error!! fileName already exists"));
+    
+    bool isSuccess = writeFATEntry(fat);
+    if(isSuccess) {
+      Serial.print(F("successfully stored file: '"));
+      Serial.print(fat.fileName);
+      Serial.println('\'');
+    }
+    
     processId = 0;
     fat = FAT();
-    return true;
-  }
+    return Done;
+  } 
 
-  return false;
+  return NotDone;
 }
 
-bool commandFunc_clearEEPROM(InputBuffer& input) {
+Task commandFunc_files(InputBuffer &input) {
+  uint8_t FATlen = getFATLength();
+  char buffer[22 + BUFFER_SIZE];
+  char name[BUFFER_SIZE+2];
+
+  int i = 0; 
+  while(true) {
+    i = FileStore::getFirstIndex(/*offset*/i);
+    if(i == -1) {
+      break;
+    }
+
+    getFATEntry_name(i, /*out*/name, sizeof(name), /*printableName:*/true);
+    sprintf(buffer, "\"%ssize(bytes): %d", name, getFATEntry_size(i));
+    Serial.println(buffer);
+    i++;
+  }
+
+  return Done;
+}
+
+inline void err_retrieve_file_not_found(InputBuffer &input) {
+  const char* name = getToken(input, 1).copy_asCstr();
+  Serial.print(F("!!error!! file name: '"));
+  Serial.print(name);
+  Serial.println(F("' is not found in system"));
+}
+
+Task commandFunc_retrieve(InputBuffer &input) {
+  const uint8_t len = getFATLength();
+  if(len == 0) {
+    err_retrieve_file_not_found(input);
+    return Done;
+  }
+
+  ASSERT_TODO;
+}
+
+Task commandFunc_clearall(InputBuffer& input) {
 
   if(!checkArguments(input, 0))
-    return true;
+    return Done;
 
   Serial.flush();
   Serial.print(F("this will DELETE ALL YOUR FILES are you sure (y)/(n) >> "));
@@ -98,30 +147,34 @@ bool commandFunc_clearEEPROM(InputBuffer& input) {
   Serial.println();
   if(firstChar != 'y') {
     Serial.println("clear cancelled");
-    return true;
+    return Done;
   }
 
   for(uint16_t i = 0; i < EEPROM.length(); i++)
-    EEPROM.write(i, 0);
+    EEPROM.update(i, 0);
 
-  Serial.println("disk cleared");
+  Serial.println(F("disk cleared"));
   eepromData.lastAddress = getFATEntry_index(0);
   Serial.flush();
-  return true;
+  return Done;
 }
 
-bool doesNameExist(const char* name, /*out*/bool& exist) {
+bool commandFunc_freespace(InputBuffer &input) {
+  ASSERT_TODO;
+}
+
+Task doesNameExist(const char* name, /*out*/bool& exist) {
   static uint8_t i = 0;
   exist = false;
   
   uint8_t len = getFATLength();
   if(len == 0)
-    return true;
+    return Done;
   
 
   if(i >= len) {
     i = 0;
-    return true;
+    return Done;
   }
 
   FAT fat;
@@ -129,50 +182,93 @@ bool doesNameExist(const char* name, /*out*/bool& exist) {
   if(strEquals(name, fat.fileName)) {
     i = 0;
     exist = true;
-    return true;
+    return Done;
   }
 
   i++;
-  return false;
+  return NotDone;
 }
 
-bool writeFATEntry(const FAT& fat) {
+inline bool writeFATEntry(const FAT& fat) {
   uint8_t FATlen = getFATLength();
+  int fileIndex = FileStore::getFirstEmpty();
 
-  if(FATlen+1 > FAT_MAX_NUM_FILES) {
+  if(fileIndex == -1) {
     Serial.println(F("!!error!! can not add a new file to system because system is already full"));
     return false;
   }
 
-  int memIndex = getFATEntry_index(++eepromData.lastAddress);
-  EEPROM.put(memIndex, fat);
-  EEPROM.put(EEPROM_HEADER_FAT_LEN_INDEX, FATlen+1);
+  int memIndex = getFATEntry_index(fileIndex);
+  for(int i = 0; i < BUFFER_SIZE; i++)
+    EEPROM.put(memIndex++, fat.fileName[i]);
+  
+  EEPROM.put(memIndex, fat.address);
+  memIndex += 2;
+  EEPROM.put(memIndex, fat.size);
 
-  IF_DEBUG(
-    Serial.print(F("(debug only) FAT size: ")); Serial.println(getFATLength());
-  )
+  EEPROM.update(EEPROM_Header::NUM_FILES_INDEX, FATlen+1);
+  FileStore::setFile(fileIndex, FileStore::HAS_FILE);
+
+  ASSERT_EQ(FATlen+1, getFATLength());
+  DEBUG_PRINT(F("(debug only) FAT size: "));
+  DEBUG_PRINTLN(getFATLength());
   return true;
 }
 
-bool readFATEntry(int index, FAT& fat) {
+inline bool readFATEntry(int index, FAT& fat) {
   if(index >= getFATLength())
     return false;
 
-  
-
-
+  getFATEntry_name(index, fat.fileName, sizeof(fat.fileName));
+  fat.size = getFATEntry_size(index);
+  fat.address = getFATEntry_addres(index);
   return true;
 }
 
 inline int getFATEntry_index(int index) {
-  constexpr int firstFAT = EEPROM_HEADER_SIZE;
-  return firstFAT + (sizeof(FAT) * index);
+  constexpr int firstFATIndex = EEPROM_Header::SIZE;
+  return firstFATIndex + (SIZEOF_FAT * index);
+}
+
+inline void getFATEntry_name(int index, /*out*/char* name, uint8_t len, bool printableName) {
+  int memIndex = getFATEntry_index(index);
+  bool isEndOfName = false;
+
+  for(uint8_t i = 0; i < len; i++) {
+    if(isEndOfName) {
+      name[i] = ' ';
+      continue;
+    }
+    
+    name[i] = EEPROM.read(memIndex++);
+    if(name[i] == '\0') {
+      isEndOfName = true;
+      
+      if(printableName) { 
+        name[i] = '\"';
+      }
+      else {
+        name[i] = '\0';
+        return;
+      }
+    }
+  }  
+    
+  name[len] = '\0';
+}
+
+inline uint8_t getFATEntry_size(int index) {
+  return EEPROM.read(getFATEntry_index(index) + BUFFER_SIZE + sizeof(uint16_t));
+}
+
+inline uint16_t getFATEntry_addres(int index) {
+  uint16_t addr;
+  EEPROM.get(getFATEntry_index(index) + BUFFER_SIZE, /*out*/addr);
+  return addr;
 }
 
 inline uint8_t getFATLength() {
-  uint8_t len = 0;
-  EEPROM.get(EEPROM_HEADER_FAT_LEN_INDEX, /*out*/len);
-  return len;
+  return EEPROM.read(EEPROM_Header::NUM_FILES_INDEX);
 }
 
 inline bool isNumber(int8_t currentDecimal) {
@@ -197,4 +293,13 @@ inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success) {
     success = true;
 
   return (uint8_t)number;
+}
+
+void FAT::fillName(ConstSpan<char>& name) {
+  uint8_t i;
+  uint8_t len = min(name.len(), BUFFER_SIZE-1);
+  for(i = 0; i < len; i++) {
+    fileName[i] = name[i];
+  }
+  fileName[len] = '\0';
 }

@@ -5,14 +5,9 @@ Tim Kieboom 1025003
 #define EEPROM_HANDLER_H
 #pragma once
 
-#include <Arduino.h>
-#include <EEPROM.h>
 #include "./commandHandler/commandHandler.h"
+#include "EEPROM_header.hpp"
 
-constexpr size_t EEPROM_HEADER_FAT_LEN_INDEX = 0;
-constexpr size_t EEPROM_HEADER_SIZE = 1;
-
-constexpr uint8_t FAT_MAX_NUM_FILES = 2;
 
 struct File {
   char fileName[BUFFER_SIZE];
@@ -27,13 +22,18 @@ struct EEPROM_Data {
     : lastAddress(lastAddress) { }
 };
 
+constexpr size_t SIZEOF_FAT = sizeof(uint16_t) + sizeof(uint8_t) + BUFFER_SIZE;
 struct FAT {
-  char* fileName;
+  char fileName[BUFFER_SIZE];
   uint16_t address;
   uint8_t size;
-};
 
-bool commandFunc_temp(InputBuffer &input);
-bool commandFunc_store(InputBuffer& input);
-bool commandFunc_clearEEPROM(InputBuffer &input);
+  void fillName(ConstSpan<char>& name);
+};
+Task commandFunc_store(InputBuffer& input);
+Task commandFunc_files(InputBuffer& input);
+Task commandFunc_retrieve(InputBuffer& input);
+Task commandFunc_clearall(InputBuffer& input);
+Task commandFunc_freespace(InputBuffer& input);
+
 #endif

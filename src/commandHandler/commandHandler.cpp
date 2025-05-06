@@ -7,13 +7,13 @@ Tim Kieboom 1025003
 #include "utils/utils.h"
 
 inline bool checkBufferOverflow(InputBuffer& input, const int index);
-inline bool addEndIndex(/*out*/InputBuffer& input, int index);
+inline void addEndIndex(/*out*/InputBuffer& input, int index);
 inline bool resetInputBuffer(/*out*/InputBuffer& inputBuffer);
 inline bool isEndOfLine(const char ch);
 inline bool isEndOfToken(const char ch);
 inline bool isUpArrow(InputBuffer& input);
 
-bool commandFunc_printAllCommands(InputBuffer& input) {
+Task commandFunc_printAllCommands(InputBuffer& input) {
     const __FlashStringHelper* ALL_COMANDS_STRING =
     F("all commands:\n\t-help"                                       
     "\n\t-store \t\t<file_name> <file_size> <data>"      
@@ -29,18 +29,18 @@ bool commandFunc_printAllCommands(InputBuffer& input) {
     "\n\t-restart");
     
     if(!checkArguments(input, 0))
-        return true;
+        return Done;
 
     Serial.println(ALL_COMANDS_STRING);
-    return true;
+    return NotDone;
 }
 
-bool commandFunc_restart(InputBuffer &input) {
+Task commandFunc_restart(InputBuffer &input) {
     if(!checkArguments(input, 0))
         return true;
     
     RESET_ARDUINO;
-    return true; //return is for compiler DOES NOTHING
+    return Done; //return is for compiler DOES NOTHING
 }
 
 bool readTokens(/*out*/InputBuffer& input) {
@@ -89,8 +89,7 @@ bool readTokens(/*out*/InputBuffer& input) {
     }
 
     if (isEndOfToken(ch)) {
-        bool isSuccess = addEndIndex(/*out*/input, input.currentIndex - 2);
-        ASSERT_PRINT(isSuccess, "to many tokens");
+        addEndIndex(/*out*/input, input.currentIndex - 2);
     }
     return false;
 }
@@ -112,6 +111,8 @@ ConstSpan<char> getToken(const InputBuffer& input, const uint8_t tokenIndex) {
     ASSERT_SMALLER(tokenIndex, TOKEN_END_INDEXES_SIZE);
     const uint8_t len = input.tokenEndIndexes[tokenIndex] + 1;
     ASSERT_PRINT(len > 1, "token is empty");
+    if(len <= 1)
+        return ConstSpan<char>();
 
     uint8_t offset = (tokenIndex > 0) ? input.tokenEndIndexes[tokenIndex - 1] + 2 : 0;
     
@@ -137,13 +138,12 @@ inline bool isUpArrow(InputBuffer& input) {
     return input.buffer.len() >= 3 && input.buffer.constSpan(0,2).equals(UpArrow, 3);
 }
 
-inline bool addEndIndex(/*out*/InputBuffer& input, int index)
-{
-    if(input.tokenEndIndexes_len >= sizeof(input.tokenEndIndexes))
-        return false;
+inline void addEndIndex(/*out*/InputBuffer& input, int index) {
+    if(input.tokenEndIndexes_len >= TOKEN_END_INDEXES_SIZE)
+        return;
 
     input.tokenEndIndexes[input.tokenEndIndexes_len++] = index;
-    return true;
+    return;
 }
 
 inline bool isEndOfToken(const char ch) {
