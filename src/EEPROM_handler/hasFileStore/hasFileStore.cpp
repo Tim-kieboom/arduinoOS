@@ -44,17 +44,13 @@ bool setFile(uint8_t index, bool value) {
     return true;
 }
 
-int getFirstEmpty(uint8_t offset) {
-    uint8_t byteOffset = offset / 8;
-    uint8_t bitOffset = offset % 8;
-
-    for(size_t byteIndex = byteOffset; byteIndex < EEPROM_Header::FILE_STORE_LEN; byteIndex++) {
+int getFirstEmpty() {
+    for(size_t byteIndex = 0; byteIndex < EEPROM_Header::FILE_STORE_LEN; byteIndex++) {
         uint8_t byte = EEPROM.read(byteIndex + EEPROM_Header::FILE_STORE_INDEX);
         if(byte < UINT8_MAX) {
-            int bitIndex = getFirstEmptyBit(byte, bitOffset);
+            int bitIndex = getFirstEmptyBit(byte, 0);
             return bitIndex + byteIndex * 8;
         }
-        bitOffset = 0;
     }
 
     return -1;
@@ -78,17 +74,6 @@ SmartArray<uint8_t> getAllIndex() {
         }
     }
     return indexes;
-}
-
-int amountOfFree() {
-    uint8_t numEmptys = 0;
-
-    for(size_t byteIndex = 0; byteIndex < EEPROM_Header::FILE_STORE_LEN; byteIndex++) {
-        uint8_t byte = EEPROM.read(byteIndex);
-        numEmptys += countEmptyBits(byte);
-    }
-
-    return numEmptys;
 }
 
 }

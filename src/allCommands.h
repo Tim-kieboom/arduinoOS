@@ -42,6 +42,9 @@ all commands:
     -clear
 
     -restart
+
+    // show info of current state of system (RAM left, files left ect..)
+    -sysinfo
 */
 #include "EEPROM_handler/hasFileStore/hasFileStore.h"
 Task temp(InputBuffer& input) {
@@ -70,6 +73,7 @@ const CommandType _ptr_allCommands[] = {
     {"freespace", &commandFunc_freespace}, //todo
     {"clearall", &commandFunc_clearall},
     {"restart", &commandFunc_restart},
+    {"sysinfo", &commandFunc_sysinfo},
 
     {"temp", &temp},
 };

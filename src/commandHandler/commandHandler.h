@@ -20,7 +20,6 @@ Task commandFunc_printAllCommands(InputBuffer& inputBuff);
 Task commandFunc_restart(InputBuffer& inputBuff);
 
 /// @brief abtract function ptr for all commands
-/// @returns Task which connt
 typedef Task (*CommandFunc)(InputBuffer& inputBuff);
 struct CommandType {
   char name[BUFFER_SIZE];

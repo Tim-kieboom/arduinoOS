@@ -9,9 +9,8 @@ namespace FileStore {
     constexpr bool EMPTY = false;
 
     bool setFile(uint8_t index, bool value);     
-    int getFirstEmpty(uint8_t offset = 0);     
+    int getFirstEmpty();     
     SmartArray<uint8_t> getAllIndex();
-    int amountOfFree();     
 };
 
 #endif

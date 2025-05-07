@@ -25,8 +25,11 @@ struct FAT {
 };
 Task commandFunc_store(InputBuffer& input);
 Task commandFunc_files(InputBuffer& input);
+Task commandFunc_sysinfo(InputBuffer& input);
 Task commandFunc_retrieve(InputBuffer& input);
 Task commandFunc_clearall(InputBuffer& input);
 Task commandFunc_freespace(InputBuffer& input);
 
 #endif
+
+

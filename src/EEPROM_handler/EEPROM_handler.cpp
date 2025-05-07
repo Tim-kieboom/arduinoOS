@@ -11,6 +11,7 @@ inline uint8_t getFATLength();
 inline int getFATEntry_index(int index);
 inline bool writeFATEntry(const FAT& fat);
 inline uint8_t getFATEntry_size(int index);
+inline bool checkName(ConstSpan<char>& name);
 inline uint16_t getFATEntry_addres(int index);
 inline bool readFATEntry(int index, FAT& fat);
 Task doesNameExist(const char* name, /*out*/bool& exist);
@@ -29,32 +30,26 @@ Task commandFunc_store(InputBuffer &input) {
       return Done;
 
     ConstSpan<char> nameSpan = getToken(input, 1);
+    if(!checkName(nameSpan)) {
+      processId = 0;
+      fat = FAT();
+      return Done;
+    }
 
-    if (nameSpan.isEmpty()) {
-      Serial.println(F("!!error!! name is empty"));
-      processId = 0;
-      fat = FAT();
+    uint8_t numFiles = getFATLength();
+    if(numFiles >= FAT_MAX_NUM_FILES) {
+      Serial.println(F("!!error!! not more space left to store another file"));
       return Done;
     }
-    else if (nameSpan.len() > 11) {
-      Serial.println(F("!!error!! name of file is to big, file names can not be bigger then 11 symbools"));
-      processId = 0;
-      fat = FAT();
-      return Done;
-    }
+
     fat.fillName(nameSpan);
 
     bool parseSuccess = false;
     fat.size = charSpanTo_uint8(getToken(input, 2), /*out*/ parseSuccess);
-    DEBUG_PRINTM(
-      F("(debug only) file.name: "), fat.fileName, '\n',
-      F("(debug only) file.size: "), fat.size, '\n',
-      F("(debug only) file.address: "), fat.address, '\n',
-      F("(debug only) firstEmpty index: "), FileStore::getFirstEmpty(), '\n'
-    );
 
     if (!parseSuccess) {
-      Serial.println(F("!!error!! while trying to parse number in store command: uint8 overflow caught (number has an invalid symbools or is to big)"));
+      auto numString = TempPtr<const char>(getToken(input, 2).copy_asCstr());
+      printM(F("!!error!! while trying to parse number: '"), numString.ptr , F("' in store command: uint8 overflow caught (number has an invalid symbools or is to big)\n"));
       processId = 0;
       fat = FAT();
       return Done;
@@ -89,33 +84,76 @@ Task commandFunc_store(InputBuffer &input) {
 }
 
 Task commandFunc_files(InputBuffer &input) {
+  static int i = -1;
+  static SmartArray<uint8_t> indexes;
+
   char name[BUFFER_SIZE+2];
 
-  SmartArray<uint8_t> indexes = FileStore::getAllIndex();  
-  IF_DEBUG(
-    for(int i = 0; i < indexes.len(); i++)
-      printM(indexes[i], ", ");
-    Serial.println();
-  )
+  if(i == -1) {
+    if(getFATLength() == 0) {
+      Serial.println(F("no files found"));
+      return Done;
+    }
 
-  for(int i = 0; i < indexes.len(); i++) {
-    uint8_t index = indexes[i];
-    getFATEntry_name(index, /*out*/name, BUFFER_SIZE+1, /*printableName:*/true);
-    printM('\"', name, "size(bytes): ", getFATEntry_size(index), F(", FAT index: "), index, '\n');
+    indexes = FileStore::getAllIndex();
+    i++;
   }
 
+  uint8_t index = indexes[i];
+  getFATEntry_name(index, /*out*/name, BUFFER_SIZE+1, /*printableName:*/true);
+  printM('\"', name, "size(bytes): ", getFATEntry_size(index), '\n');
+
+  if((size_t)++i < indexes.len())
+    return NotDone;
+
+  i = -1;
   indexes.free();
   return Done;
 }
 
-Task commandFunc_retrieve(InputBuffer &input) {
-  // const uint8_t len = getFATLength();
-  // if(len == 0) {
-  //   err_retrieve_file_not_found(input);
-  //   return Done;
-  // }
+Task commandFunc_sysinfo(InputBuffer &input) {
+  printM(
+    F("RAM left: "), getAmountOfFreeRam(), F(" KB\n"),
+    F("free File spaces left: "), FAT_MAX_NUM_FILES - getFATLength(), '\n'
+  );
 
-  ASSERT_TODO;
+  return Done;
+}
+
+Task commandFunc_retrieve(InputBuffer &input) {
+  static int i = -1;
+  static SmartArray<uint8_t> indexes;
+  char name[BUFFER_SIZE];
+  
+  const uint8_t len = getFATLength();
+  if(len == 0) {
+    err_retrieve_file_not_found(input);
+    return Done;
+  }
+
+  if(i == -1) {
+    indexes = FileStore::getAllIndex();
+    i++;
+  }
+
+  uint8_t index = indexes[i];
+  getFATEntry_name(index, /*out*/name, BUFFER_SIZE-1);
+  ConstSpan<char> findName = getToken(input, 1);
+  
+  if(findName.equals(name, strlen(name))) {
+    Serial.println(F("file found"));
+    i = -1;
+    indexes.free();
+    return Done;
+  }
+
+  if((size_t)++i < indexes.len())
+    return NotDone;
+
+  i = -1;
+  indexes.free();
+  err_retrieve_file_not_found(input);
+  return Done;
 }
 
 Task commandFunc_clearall(InputBuffer& input) {
@@ -140,7 +178,8 @@ Task commandFunc_clearall(InputBuffer& input) {
 
   Serial.println(F("disk cleared"));
   Serial.flush();
-  return Done;
+  RESET_ARDUINO;
+  return Done; // for compiler does not return
 }
 
 Task commandFunc_freespace(InputBuffer &input) {
@@ -171,6 +210,39 @@ Task doesNameExist(const char* name, /*out*/bool& exist) {
 
   i++;
   return NotDone;
+}
+
+inline bool isNumber(char ch) {
+  int num = ch - '0';
+  return num > -1 && num < 10;
+}
+
+inline bool checkName(ConstSpan<char>& name) {
+  static const char* illigalChars = "~`!@#$%^&*()-+={}|[]\\;':\",./<>?";
+  
+  if(name.len() == 0) {
+    Serial.println(F("!!error!! name is empty"));
+    return false;
+  }
+
+  if (name.len() > 11) {
+    Serial.println(F("!!error!! name of file is to big, file names can not be bigger then 11 symbools"));
+    return false;
+  }
+
+  if(isNumber(name[0])) {
+    Serial.println(F("!!error!! name of file can not start with a number"));
+    return false;
+  }
+
+  for(int i = 0; i < name.len(); i++) {
+    if (strchr(illigalChars, name[i]) != NULL) {
+      printM(F("!!error!! name of file can not contain any special chars like: "), illigalChars, '\n');
+      return false;
+    }
+  }
+
+  return true;
 }
 
 inline void err_retrieve_file_not_found(InputBuffer &input) {
@@ -270,7 +342,6 @@ inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success) {
   for(size_t i = 0; i < str.len(); i++) {
     number *= 10;
     int8_t currentDecimal = (int8_t)(str[i] - '0');
-    ASSERT_PRINT(isNumber(currentDecimal), str.copy_asCstr());
     if(!isNumber(currentDecimal))
       return 0;
 

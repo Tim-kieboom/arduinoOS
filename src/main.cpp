@@ -4,16 +4,13 @@ Tim Kieboom 1025003
 #include <Arduino.h>
 
 #include "allCommands.h"
-inline void readAndRunLine(/*out*/ InputBuffer& input, /*out*/CommandFunc& currentCommand);
+inline void getCommand(/*out*/ InputBuffer& input, /*out*/ CommandFunc& currentCommand);
 
 void setup() {
     Serial.begin(9600);
     delay(500);
     Serial.println(F("starting TKArduinoOS type 'help' for more information"));
     Serial.println(F("welkom my friend :)"));
-
-    DEBUG_PRINTM(F("(debug only) current numOfFiles: "), EEPROM.read(EEPROM_Header::NUM_FILES_INDEX), '\n');
-    DEBUG_PRINTM(F("(debug only) amount free: "), FileStore::amountOfFree());
     ASSERT_RAM;
     delay(500);
 
@@ -28,7 +25,7 @@ void loop() {
         if(currentCommand) 
             Serial.flush();
 
-        readAndRunLine(/*out*/ input, /*out*/currentCommand);
+        getCommand(/*out*/ input, /*out*/ currentCommand);
     }
 
     if(currentCommand) {
@@ -41,7 +38,7 @@ void loop() {
     }
 } 
 
-inline void readAndRunLine(/*out*/ InputBuffer& input, /*out*/CommandFunc& currentCommand) {
+inline void getCommand(/*out*/ InputBuffer& input, /*out*/ CommandFunc& currentCommand) {
     Task await = readTokens(/*out*/ input);
     if(!await.isDone) 
         return;
