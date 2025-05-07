@@ -8,12 +8,18 @@ Tim Kieboom 1025003
 #include <Arduino.h>
 #include "debug.h"
 
+inline int getAmountOfFreeRam() {
+    extern int __heap_start, *__brkval;
+    int v;
+    return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+}
+
 #ifdef ARDUINO_AVR_UNO
 #define RESET_ARDUINO asm volatile(" jmp 0 ")
-#define PANIC Serial.print(F("!!panic!! restarting arduino")); RESET_ARDUINO
+#define PANIC Serial.println(F("!!panic!! restarting arduino")); delay(500); RESET_ARDUINO
 #else 
 #define RESET_ARDUINO PANIC; Serial.print(F("define 'RESET_ARDUINO' not found for this platfrom"))
-#define PANIC Serial.print(F("!!panic!! exiting program")); exit(1)
+#define PANIC Serial.print(F("!!panic!! exiting program")); delay(500); exit(1)
 #endif
 
 /**
@@ -84,7 +90,7 @@ Tim Kieboom 1025003
  */
 #define ASSERT_ALLOC(ptr) ASSERT_PRINT(ptr != NULL, F("alloc failed"))
 
-#define _ASSERT_CMP(a, cmp, b) ASSERT_PRINT(a cmp b, "(left: '" + String(a) + "', is not " + String(#cmp) + "to/then right: '" + String(b) + "')")
+#define _ASSERT_CMP(a, cmp, b) ASSERT_PRINT(a cmp b, "(left: '" + String(a) + "', right: '" + String(b) + "')")
 
 /**
  * @brief Asserts that two values are equal in debug builds.
@@ -137,6 +143,11 @@ Tim Kieboom 1025003
  * @param b Second value to compare.
  */
 #define ASSERT_BIGGER(a, b) _ASSERT_CMP(a, >, b)
+
+/**
+ * @brief Asserts that RAM left is not 0 prints ram left.
+ */
+#define ASSERT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, "no more RAM left"); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" KB\n"))
 
 #endif
 

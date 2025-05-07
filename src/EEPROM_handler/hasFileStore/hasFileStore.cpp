@@ -5,6 +5,16 @@ inline int getFirstFullBit(uint8_t byte, uint8_t offset);
 inline uint8_t countEmptyBits(uint8_t byte);
 namespace FileStore {
 
+TempPtr<char> byteToString(uint8_t byte) {
+    TempPtr<char> buffer = TempPtr<char>(new char[9]);
+    int i = 0;
+    for (int j = 7; j >= 0; j--) 
+        buffer.ptr[i++] = (bitRead(byte, j) == 1) ? '1' : '0';
+    
+    buffer.ptr[8] = '\0';
+    return buffer;
+}
+
 bool setFile(uint8_t index, bool value) {
     ASSERT_SMALLER(index, (EEPROM_Header::FILE_STORE_LEN * 8)-1);
     if(index > EEPROM_Header::FILE_STORE_LEN * 8)
@@ -12,14 +22,25 @@ bool setFile(uint8_t index, bool value) {
 
     const int byteIndex = index / 8;
     const int bitIndex = index % 8;
+    DEBUG_PRINTM(
+        F("(debug only) in setFile(): \n"), 
+        F("\tindex: "), index, '\n',
+        F("\tbyteIndex: "), byteIndex, '\t',
+        F("\tbitIndex: "), bitIndex, '\n'
+    );
 
-    uint8_t byte = EEPROM.read(byteIndex);
+    uint8_t byte = EEPROM.read(byteIndex + EEPROM_Header::FILE_STORE_INDEX);
+    DEBUG_PRINTM(F("\told byte: "), byteToString(byte).ptr, '\n');
     if(value) {
         byte |= (1 << bitIndex);
-    } else {
+    } 
+    else {
         byte &= ~(1 << bitIndex);
     }
-    EEPROM.update(byteIndex, byte);
+
+    DEBUG_PRINTM(F("\tnew byte: "), byteToString(byte).ptr, '\n');
+
+    EEPROM.put(byteIndex + EEPROM_Header::FILE_STORE_INDEX, byte);
     return true;
 }
 
@@ -28,7 +49,7 @@ int getFirstEmpty(uint8_t offset) {
     uint8_t bitOffset = offset % 8;
 
     for(size_t byteIndex = byteOffset; byteIndex < EEPROM_Header::FILE_STORE_LEN; byteIndex++) {
-        uint8_t byte = EEPROM.read(byteIndex);
+        uint8_t byte = EEPROM.read(byteIndex + EEPROM_Header::FILE_STORE_INDEX);
         if(byte < UINT8_MAX) {
             int bitIndex = getFirstEmptyBit(byte, bitOffset);
             return bitIndex + byteIndex * 8;
@@ -39,21 +60,24 @@ int getFirstEmpty(uint8_t offset) {
     return -1;
 }
 
-int getFirstIndex(uint8_t offset) {
-    uint8_t byteOffset = offset / 8;
-    uint8_t bitOffset = offset % 8;
+SmartArray<uint8_t> getAllIndex() {
+    uint8_t numIndexes = EEPROM.read(EEPROM_Header::NUM_FILES_INDEX);
+    auto indexes = SmartArray<uint8_t>(numIndexes);
+    uint8_t top = 0;
+    
+    for (uint8_t byteIndex = 0; byteIndex < EEPROM_Header::FILE_STORE_LEN; byteIndex++) {
+        uint8_t byte = EEPROM.read(byteIndex + EEPROM_Header::FILE_STORE_INDEX);
+        for (int i = 0; i < 8; i++) {
 
-    for (size_t byteIndex = byteOffset; byteIndex < EEPROM_Header::FILE_STORE_LEN; byteIndex++) {
-        uint8_t byte = EEPROM.read(byteIndex);
-        if (byte > 0) {
-            int bitIndex = getFirstFullBit(byte, bitOffset);
-            if (bitIndex >= 0)
-                return bitIndex + byteIndex * 8;
+            if (byte & (1 << i)) { 
+                uint8_t index = (byteIndex * 8) + i;
+                indexes[top++] = index;
+                if (top == numIndexes)
+                    return indexes;
+            }
         }
-        bitOffset = 0;
     }
-
-    return -1;
+    return indexes;
 }
 
 int amountOfFree() {

@@ -15,13 +15,6 @@ struct File {
   char data[BUFFER_SIZE];
 };
 
-struct EEPROM_Data {
-  int16_t lastAddress = -1;
-
-  EEPROM_Data(int16_t lastAddress)
-    : lastAddress(lastAddress) { }
-};
-
 constexpr size_t SIZEOF_FAT = sizeof(uint16_t) + sizeof(uint8_t) + BUFFER_SIZE;
 struct FAT {
   char fileName[BUFFER_SIZE];

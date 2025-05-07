@@ -38,11 +38,29 @@ all commands:
     // stop program
     -kill <process_id>
 
-    // clear WHOLE EEPROM
+    // fills WHOLE EEPROM with 0
     -clear
 
     -restart
 */
+#include "EEPROM_handler/hasFileStore/hasFileStore.h"
+Task temp(InputBuffer& input) {
+    uint8_t len = EEPROM.read(EEPROM_Header::NUM_FILES_INDEX);
+    printM(F("number of files: "), len, '\n');
+
+    for(size_t i = 0; i < EEPROM_Header::FILE_STORE_LEN; i++) {
+      
+        uint8_t byte = EEPROM.read(i + EEPROM_Header::FILE_STORE_INDEX);
+        Serial.print(byte, BIN);
+        Serial.print(' ');
+    }
+
+    printM(
+        '\n',
+        F("firstEmpty: "), FileStore::getFirstEmpty(), '\n'
+    );
+    return Done;
+}
 
 const CommandType _ptr_allCommands[] = {
     {"help", &commandFunc_printAllCommands},
@@ -52,6 +70,8 @@ const CommandType _ptr_allCommands[] = {
     {"freespace", &commandFunc_freespace}, //todo
     {"clearall", &commandFunc_clearall},
     {"restart", &commandFunc_restart},
+
+    {"temp", &temp},
 };
 const size_t _len_allCommands = sizeof(_ptr_allCommands) / sizeof(CommandType);
 const ConstSpan<CommandType> allCommands = ConstSpan<CommandType>(_ptr_allCommands, 0, _len_allCommands);

@@ -11,8 +11,8 @@ namespace EEPROM_Header{
 
   constexpr size_t NUM_FILES_INDEX = 0;
   constexpr size_t FILE_STORE_INDEX = 1;
-  static const size_t FILE_STORE_LEN = (size_t)roundUp(FAT_MAX_NUM_FILES / 8.0);
-  static const size_t SIZE = FILE_STORE_LEN+1;
+  constexpr size_t FILE_STORE_LEN = static_cast<size_t>(roundUp(FAT_MAX_NUM_FILES / 8.0));
+  constexpr size_t SIZE = FILE_STORE_LEN+1;
 }
 
 #endif

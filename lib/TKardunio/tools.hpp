@@ -195,6 +195,28 @@ public:
     }
 };
 
+/// @brief a ptr that gets deleted then class is out of scope
+/// @tparam T any type
+template<typename T>
+class TempPtr {
+public:
+    T* ptr = nullptr;
+
+    TempPtr() { }
+    TempPtr(T* ptr)
+        : ptr(ptr)
+    {
+        ASSERT_ALLOC(ptr);
+    }
+
+    ~TempPtr() { 
+        if(ptr) {
+            DEBUG_PRINTM(F("(debug only) ptr of id: '"), (intptr_t)ptr, F("' has been deleted by TempPtr\n"));
+            delete ptr;
+        }
+    }
+};
+
 #endif
 
 

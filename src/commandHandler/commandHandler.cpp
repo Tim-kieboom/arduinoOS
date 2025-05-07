@@ -6,57 +6,51 @@ Tim Kieboom 1025003
 #include "InputBuffer/InputBuffer.h"
 #include "utils/utils.h"
 
-inline bool checkBufferOverflow(InputBuffer& input, const int index);
+inline bool wouldBufferOverflow(InputBuffer& input, const int index);
 inline void addEndIndex(/*out*/InputBuffer& input, int index);
-inline bool resetInputBuffer(/*out*/InputBuffer& inputBuffer);
+inline void resetInputBuffer(/*out*/InputBuffer& inputBuffer);
 inline bool isEndOfLine(const char ch);
 inline bool isEndOfToken(const char ch);
-inline bool isUpArrow(InputBuffer& input);
 
 Task commandFunc_printAllCommands(InputBuffer& input) {
-    const __FlashStringHelper* ALL_COMANDS_STRING =
-    F("all commands:\n\t-help"                                       
-    "\n\t-store \t\t<file_name> <file_size> <data>"      
-    "\n\t-retrieve \t<file_name>"                     
-    "\n\t-erase \t\t<file_name>"                      
-    "\n\t-files"                                       
-    "\n\t-freespace"                                  
-    "\n\t-run \t\t<file_name>"                        
-    "\n\t-suspend \t<process_id>"                     
-    "\n\t-resume \t<process_id>"                     
-    "\n\t-kill \t\t<process_id>"
-    "\n\t-clearall"
-    "\n\t-restart");
+    static const __FlashStringHelper* ALL_COMANDS_STRING =
+    F("all commands:"
+        "\n\t-help"                                       
+        "\n\t-store \t\t<file_name> <file_size> <data>"      
+        "\n\t-retrieve \t<file_name>"                     
+        "\n\t-erase \t\t<file_name>"                      
+        "\n\t-files"                                       
+        "\n\t-freespace"                                  
+        "\n\t-run \t\t<file_name>"                        
+        "\n\t-suspend \t<process_id>"                     
+        "\n\t-resume \t<process_id>"                     
+        "\n\t-kill \t\t<process_id>"
+        "\n\t-clearall"
+        "\n\t-restart"
+    );
     
     if(!checkArguments(input, 0))
         return Done;
 
     Serial.println(ALL_COMANDS_STRING);
-    return NotDone;
+    return Done;
 }
 
 Task commandFunc_restart(InputBuffer &input) {
     if(!checkArguments(input, 0))
-        return true;
+        return Done;
     
     RESET_ARDUINO;
     return Done; //return is for compiler DOES NOTHING
 }
 
-bool readTokens(/*out*/InputBuffer& input) {
-    static SmartArray<char> prev = SmartArray<char>(INPUT_BUFFER_SIZE);
-    static uint8_t prevEndTokensIndexes[TOKEN_END_INDEXES_SIZE];
-    static uint8_t prevEndTokensIndexes_len = 0;
+Task readTokens(/*out*/InputBuffer& input) {
+    if(input.shouldResetBuffer) 
+        resetInputBuffer(/*out*/input);
 
-    if(input.shouldResetBuffer) {
-        if(!resetInputBuffer(/*out*/input))
-            return false;
-    }
-
-    char ch = Serial.read();
-
-    if(checkBufferOverflow(input, input.currentIndex))
-        return false;
+    const char ch = Serial.read();
+    if(wouldBufferOverflow(input, input.currentIndex))
+        return NotDone;
 
     input.buffer[input.currentIndex++] = ch;
 
@@ -65,40 +59,27 @@ bool readTokens(/*out*/InputBuffer& input) {
             input.shouldResetBuffer = true;
             Serial.flush();
             Serial.print(">> ");
-            return false;
+            return NotDone;
         }
 
-        if(isUpArrow(input)) {
-            input.buffer.setRange(prev);
-            memcpy(input.tokenEndIndexes, prevEndTokensIndexes, TOKEN_END_INDEXES_SIZE);
-            input.tokenEndIndexes_len = prevEndTokensIndexes_len;
-        }
-        else {
-            if(checkBufferOverflow(input, input.currentIndex+1))
-                return false;
+        if(wouldBufferOverflow(input, input.currentIndex+1))
+            return NotDone;
 
-            input.buffer[input.currentIndex+1] = '\0';
-
-            prev.setRange(input.buffer);
-            memcpy(prevEndTokensIndexes, input.tokenEndIndexes, TOKEN_END_INDEXES_SIZE);
-            prevEndTokensIndexes_len = input.tokenEndIndexes_len;
-        }
+        input.buffer[input.currentIndex+1] = '\0';
 
         input.shouldResetBuffer = true;
-        return true;
+        return Done;
     }
 
     if (isEndOfToken(ch)) {
         addEndIndex(/*out*/input, input.currentIndex - 2);
     }
-    return false;
+    return NotDone;
 }
 
-inline bool checkBufferOverflow(InputBuffer& input, const int index)  {
+inline bool wouldBufferOverflow(InputBuffer& input, const int index)  {
     if(input.currentIndex >= input.buffer.len()) {
-        Serial.println();
-        Serial.println(F("!!error!! input to large"));
-        Serial.print(">> ");
+        printM('\n', F("!!error!! input to large"), '\n', F(">> "));
         Serial.flush();
         resetInputBuffer(input);
         return true;
@@ -133,11 +114,6 @@ CommandFunc getCommandFunction(const ConstSpan<CommandType>& commands, ConstSpan
     return nullptr;
 }
 
-inline bool isUpArrow(InputBuffer& input) {
-    constexpr char UpArrow[] = {27, 91, 'A'}; 
-    return input.buffer.len() >= 3 && input.buffer.constSpan(0,2).equals(UpArrow, 3);
-}
-
 inline void addEndIndex(/*out*/InputBuffer& input, int index) {
     if(input.tokenEndIndexes_len >= TOKEN_END_INDEXES_SIZE)
         return;
@@ -154,7 +130,7 @@ inline bool isEndOfLine(const char ch) {
     return ch == '\n' || ch == '\0';
 }
 
-inline bool resetInputBuffer(/*out*/InputBuffer& input) {
+inline void resetInputBuffer(/*out*/InputBuffer& input) {
     for(int i = 0; i < TOKEN_END_INDEXES_SIZE; i++) {
         input.tokenEndIndexes[i] = 0;
     }
@@ -162,7 +138,6 @@ inline bool resetInputBuffer(/*out*/InputBuffer& input) {
     input.shouldResetBuffer = false;
     input.tokenEndIndexes_len = 0;
     input.currentIndex = 0;
-    return true;
 }
 
 

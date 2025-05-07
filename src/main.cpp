@@ -12,7 +12,9 @@ void setup() {
     Serial.println(F("starting TKArduinoOS type 'help' for more information"));
     Serial.println(F("welkom my friend :)"));
 
-    DEBUG_PRINTF("(debug only) current FAT.len: %d\n", EEPROM.read(EEPROM_Header::NUM_FILES_INDEX));
+    DEBUG_PRINTM(F("(debug only) current numOfFiles: "), EEPROM.read(EEPROM_Header::NUM_FILES_INDEX), '\n');
+    DEBUG_PRINTM(F("(debug only) amount free: "), FileStore::amountOfFree());
+    ASSERT_RAM;
     delay(500);
 
     Serial.print(F(">> "));
@@ -30,17 +32,18 @@ void loop() {
     }
 
     if(currentCommand) {
-        bool isDone = currentCommand(input);
-        if(isDone) {
+        Task await = currentCommand(input);
+        if(await.isDone) {
             currentCommand = nullptr;
+            ASSERT_RAM;
             Serial.print(F(">> "));
         }
     }
 } 
 
 inline void readAndRunLine(/*out*/ InputBuffer& input, /*out*/CommandFunc& currentCommand) {
-    bool isSuccess = readTokens(/*out*/ input);
-    if(!isSuccess) 
+    Task await = readTokens(/*out*/ input);
+    if(!await.isDone) 
         return;
 
     ConstSpan<char> commandName = getToken(input, 0);

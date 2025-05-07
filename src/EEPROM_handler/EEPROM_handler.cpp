@@ -6,29 +6,27 @@ Tim Kieboom 1025003
 #include "InputBuffer/InputBuffer.h"
 #include "hasFileStore/hasFileStore.h"
 #include <utils/utils.h>
+
 inline uint8_t getFATLength();
 inline int getFATEntry_index(int index);
 inline bool writeFATEntry(const FAT& fat);
 inline uint8_t getFATEntry_size(int index);
 inline uint16_t getFATEntry_addres(int index);
 inline bool readFATEntry(int index, FAT& fat);
-bool doesNameExist(const char* name, /*out*/bool& exist);
-inline void getFATEntry_name(int index, /*out*/char* name, uint8_t len, bool printableName = false);
+Task doesNameExist(const char* name, /*out*/bool& exist);
+inline void err_retrieve_file_not_found(InputBuffer &input);
 inline uint8_t charSpanTo_uint8(ConstSpan<char> str, /*out*/bool& success);
-
-static EEPROM_Data eepromData = EEPROM_Data(
-  getFATLength()-1
-);
+inline void getFATEntry_name(int index, /*out*/char* name, uint8_t len, bool printableName = false);
 
 Task commandFunc_store(InputBuffer &input) {
   static int processId = 0;
   static FAT fat = FAT();
 
+  DEBUG_PRINTM(F("(debug only) store() current processId: "), processId, '\n');
+
   if (processId == 0) {
     if (!checkArguments(input, 3))
       return Done;
-
-    fat.address = eepromData.lastAddress + 1;
 
     ConstSpan<char> nameSpan = getToken(input, 1);
 
@@ -45,17 +43,15 @@ Task commandFunc_store(InputBuffer &input) {
       return Done;
     }
     fat.fillName(nameSpan);
-    Serial.println(fat.fileName);
 
     bool parseSuccess = false;
     fat.size = charSpanTo_uint8(getToken(input, 2), /*out*/ parseSuccess);
-    DEBUG_PRINTF("(debug only) file.name: %s\n", fat.fileName);
-    DEBUG_PRINTF("(debug only) file.size: %d\n", fat.size);
-    DEBUG_PRINTF("(debug only) file.address: %d\n", fat.address);
-    int fileIndex = FileStore::getFirstEmpty();
-  
-    DEBUG_PRINT(F("(debug only)firstEmpty index: "));
-    DEBUG_PRINTLN(fileIndex);
+    DEBUG_PRINTM(
+      F("(debug only) file.name: "), fat.fileName, '\n',
+      F("(debug only) file.size: "), fat.size, '\n',
+      F("(debug only) file.address: "), fat.address, '\n',
+      F("(debug only) firstEmpty index: "), FileStore::getFirstEmpty(), '\n'
+    );
 
     if (!parseSuccess) {
       Serial.println(F("!!error!! while trying to parse number in store command: uint8 overflow caught (number has an invalid symbools or is to big)"));
@@ -71,7 +67,7 @@ Task commandFunc_store(InputBuffer &input) {
   bool exists = false;
   Task nameTask = doesNameExist(fat.fileName, /*out*/exists);
 
-  if(nameTask == Done) {
+  if(nameTask.isDone) {
 
     if (exists) {
       Serial.println(F("!!error!! fileName already exists"));
@@ -81,11 +77,8 @@ Task commandFunc_store(InputBuffer &input) {
     }
     
     bool isSuccess = writeFATEntry(fat);
-    if(isSuccess) {
-      Serial.print(F("successfully stored file: '"));
-      Serial.print(fat.fileName);
-      Serial.println('\'');
-    }
+    if(isSuccess) 
+      printM(F("successfully stored file: '"), fat.fileName, F("'\n"));
     
     processId = 0;
     fat = FAT();
@@ -96,39 +89,31 @@ Task commandFunc_store(InputBuffer &input) {
 }
 
 Task commandFunc_files(InputBuffer &input) {
-  uint8_t FATlen = getFATLength();
-  char buffer[22 + BUFFER_SIZE];
   char name[BUFFER_SIZE+2];
 
-  int i = 0; 
-  while(true) {
-    i = FileStore::getFirstIndex(/*offset*/i);
-    if(i == -1) {
-      break;
-    }
+  SmartArray<uint8_t> indexes = FileStore::getAllIndex();  
+  IF_DEBUG(
+    for(int i = 0; i < indexes.len(); i++)
+      printM(indexes[i], ", ");
+    Serial.println();
+  )
 
-    getFATEntry_name(i, /*out*/name, sizeof(name), /*printableName:*/true);
-    sprintf(buffer, "\"%ssize(bytes): %d", name, getFATEntry_size(i));
-    Serial.println(buffer);
-    i++;
+  for(int i = 0; i < indexes.len(); i++) {
+    uint8_t index = indexes[i];
+    getFATEntry_name(index, /*out*/name, BUFFER_SIZE+1, /*printableName:*/true);
+    printM('\"', name, "size(bytes): ", getFATEntry_size(index), F(", FAT index: "), index, '\n');
   }
 
+  indexes.free();
   return Done;
 }
 
-inline void err_retrieve_file_not_found(InputBuffer &input) {
-  const char* name = getToken(input, 1).copy_asCstr();
-  Serial.print(F("!!error!! file name: '"));
-  Serial.print(name);
-  Serial.println(F("' is not found in system"));
-}
-
 Task commandFunc_retrieve(InputBuffer &input) {
-  const uint8_t len = getFATLength();
-  if(len == 0) {
-    err_retrieve_file_not_found(input);
-    return Done;
-  }
+  // const uint8_t len = getFATLength();
+  // if(len == 0) {
+  //   err_retrieve_file_not_found(input);
+  //   return Done;
+  // }
 
   ASSERT_TODO;
 }
@@ -154,12 +139,11 @@ Task commandFunc_clearall(InputBuffer& input) {
     EEPROM.update(i, 0);
 
   Serial.println(F("disk cleared"));
-  eepromData.lastAddress = getFATEntry_index(0);
   Serial.flush();
   return Done;
 }
 
-bool commandFunc_freespace(InputBuffer &input) {
+Task commandFunc_freespace(InputBuffer &input) {
   ASSERT_TODO;
 }
 
@@ -189,6 +173,11 @@ Task doesNameExist(const char* name, /*out*/bool& exist) {
   return NotDone;
 }
 
+inline void err_retrieve_file_not_found(InputBuffer &input) {
+  const char* name = getToken(input, 1).copy_asCstr();
+  printM(F("!!error!! file name: '"), name, F("' is not found in system"));
+}
+
 inline bool writeFATEntry(const FAT& fat) {
   uint8_t FATlen = getFATLength();
   int fileIndex = FileStore::getFirstEmpty();
@@ -210,8 +199,7 @@ inline bool writeFATEntry(const FAT& fat) {
   FileStore::setFile(fileIndex, FileStore::HAS_FILE);
 
   ASSERT_EQ(FATlen+1, getFATLength());
-  DEBUG_PRINT(F("(debug only) FAT size: "));
-  DEBUG_PRINTLN(getFATLength());
+  DEBUG_PRINTM(F("(debug only) FAT size: "), getFATLength(), '\n');
   return true;
 }
 
@@ -301,5 +289,14 @@ void FAT::fillName(ConstSpan<char>& name) {
   for(i = 0; i < len; i++) {
     fileName[i] = name[i];
   }
-  fileName[len] = '\0';
+  fileName[len] = '\0'; 
 }
+
+
+
+
+
+
+
+
+

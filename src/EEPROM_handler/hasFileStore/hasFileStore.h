@@ -10,7 +10,7 @@ namespace FileStore {
 
     bool setFile(uint8_t index, bool value);     
     int getFirstEmpty(uint8_t offset = 0);     
-    int getFirstIndex(uint8_t offset = 0);
+    SmartArray<uint8_t> getAllIndex();
     int amountOfFree();     
 };
 

@@ -11,15 +11,16 @@ Tim Kieboom 1025003
 
 #define INPUT_BUFFER_SIZE 35
 
-typedef bool Task;
-constexpr Task Done = true;
-constexpr Task NotDone = true;
+/// @brief struct that is used for async functions if Task.isDone is true function is done
+struct Task {bool isDone; };
+constexpr Task Done = {true};
+constexpr Task NotDone = {false};
 
 Task commandFunc_printAllCommands(InputBuffer& inputBuff);
 Task commandFunc_restart(InputBuffer& inputBuff);
 
 /// @brief abtract function ptr for all commands
-/// @returns true is process finished else false
+/// @returns Task which connt
 typedef Task (*CommandFunc)(InputBuffer& inputBuff);
 struct CommandType {
   char name[BUFFER_SIZE];
@@ -28,13 +29,11 @@ struct CommandType {
 
 /// @brief reads the input text from terminal and gets the indexes of the input tokens
 /// @param inputBuffer buffer that stores metadata about the input and the tokens of that input
-/// @return true is done reading line, false if not
-bool readTokens(/*out*/InputBuffer& inputBuffer);
+Task readTokens(/*out*/InputBuffer& inputBuffer);
 
 /// @brief get the n'th token from inputBuffer
 /// @param inputBuff 
 /// @param tokenIndex 
-/// @return a ConstSpan of raw chars of Token
 ConstSpan<char> getToken(const InputBuffer& inputBuff, const uint8_t tokenIndex);
 CommandFunc getCommandFunction(const ConstSpan<CommandType>& commands, ConstSpan<char>& commandName);
 
