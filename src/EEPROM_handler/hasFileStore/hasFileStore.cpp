@@ -15,7 +15,7 @@ TempPtr<char> byteToString(uint8_t byte) {
     return buffer;
 }
 
-bool setFile(uint8_t index, bool value) {
+bool setFile(uint8_t index, FileState state) {
     ASSERT_SMALLER(index, (EEPROM_Header::FILE_STORE_LEN * 8)-1);
     if(index > EEPROM_Header::FILE_STORE_LEN * 8)
         return false;
@@ -31,7 +31,7 @@ bool setFile(uint8_t index, bool value) {
 
     uint8_t byte = EEPROM.read(byteIndex + EEPROM_Header::FILE_STORE_INDEX);
     DEBUG_PRINTM(F("\told byte: "), byteToString(byte).ptr, '\n');
-    if(value) {
+    if(state.value) {
         byte |= (1 << bitIndex);
     } 
     else {

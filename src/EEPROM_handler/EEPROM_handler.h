@@ -23,6 +23,8 @@ struct FAT {
 
   void fillName(ConstSpan<char>& name);
 };
+
+Task commandFunc_erase(InputBuffer& input);
 Task commandFunc_store(InputBuffer& input);
 Task commandFunc_files(InputBuffer& input);
 Task commandFunc_sysinfo(InputBuffer& input);

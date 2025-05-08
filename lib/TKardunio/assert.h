@@ -22,6 +22,25 @@ inline int getAmountOfFreeRam() {
 #define PANIC Serial.print(F("!!panic!! exiting program")); delay(500); exit(1)
 #endif
 
+#define _ASSERT_CUSTOM(condition, extra) IF_DEBUG(                          \                                                          
+    if (!(condition)) {                                                     \
+        printM(                                                             \
+            '\n',                                                           \
+            F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"),                          \
+            F("Assertion '"), F(#condition), F("' failed! at:\n"),          \
+            F("file: "), F(__FILE__), '\n',                                 \
+            F("func: "), __func__, '\n',                                    \
+            F("line: "), __LINE__, '\n'                                     \
+        );                                                                  \
+        extra;                                                              \
+        Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));                \
+        delay(500); /*give micro controller some time to print out assert*/ \
+        PANIC;                                                              \
+        while(1); /*while(1) is just for the compiler plz ignore*/          \
+    }                                                                       \
+) 
+#define _ASSERT_CMP(a, cmp, b) _ASSERT_CUSTOM(a cmp b, printM(F("(left: '"), a, F("', right: '"), b, F("')\n")))
+
 /**
  * @brief Asserts that a condition is true in debug builds.
  *
@@ -32,20 +51,7 @@ inline int getAmountOfFreeRam() {
  * 
  * @param condition Expression to evaluate. If false, triggers the assertion failure.
  */
-#define ASSERT(condition) IF_DEBUG(                                                                         \
-    if (!(condition)) {                                                                                     \
-        Serial.println();                                                                                   \
-        Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));                                                \
-        Serial.print(F("Assertion '")); Serial.print(F(#condition)); Serial.println(F("' failed! at:"));    \
-        Serial.print(F("file: ")); Serial.println(F(__FILE__));                                             \
-        Serial.print(F("func: ")); Serial.println(__func__);                                                \
-        Serial.print(F("line: ")); Serial.println(__LINE__);                                                \
-        Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));                                                \
-        delay(500); /*give micro controller some time to print out assert*/                                 \
-        PANIC;                                                                                              \
-        while(1); /*while(1) is just for the compiler plz ignore*/                                          \
-    }                                                                                                       \
-)
+#define ASSERT(condition) _ASSERT_CUSTOM(condition, ;)
 
 /**
  * @brief Assert that a condition is true in debug builds, with a custom message.
@@ -58,21 +64,7 @@ inline int getAmountOfFreeRam() {
  * @param condition Expression to evaluate. If false, triggers assertion failure.
  * @param message Custom message to print if assertion fails.
  */
-#define ASSERT_PRINT(condition, message) IF_DEBUG(                                                          \
-    if (!(condition)) {                                                                                     \
-        Serial.println();                                                                                   \
-        Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));                                                \
-        Serial.print(F("Assertion '")); Serial.print(F(#condition)); Serial.println(F("' failed! at:"));    \
-        Serial.print(F("file: ")); Serial.println(F(__FILE__));                                             \
-        Serial.print(F("func: ")); Serial.println(__func__);                                                \
-        Serial.print(F("line: ")); Serial.println(__LINE__);                                                \
-        Serial.print(F("msg: ")); Serial.println(message);                                                  \
-        Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));                                                \
-        delay(500); /*give micro controller some time to print out assert*/                                 \
-        PANIC;                                                                                              \
-        while(1); /*while(1) is just for the compiler plz ignore*/                                          \
-    }                                                                                                       \
-)                                                                                                      
+#define ASSERT_PRINT(condition, message) _ASSERT_CUSTOM(condition, printM(F("msg: "), message, '\n');)                                                                                               
 
 /**
  * @brief Mark code paths that are not yet implemented.
@@ -87,10 +79,10 @@ inline int getAmountOfFreeRam() {
  *
  * In debug mode, will check if ptr is nullptr if i is fail.
  * In release mode, does nothing.
+ * 
+ * @param ptr the pointer you just newed.
  */
 #define ASSERT_ALLOC(ptr) ASSERT_PRINT(ptr != NULL, F("alloc failed"))
-
-#define _ASSERT_CMP(a, cmp, b) ASSERT_PRINT(a cmp b, "(left: '" + String(a) + "', right: '" + String(b) + "')")
 
 /**
  * @brief Asserts that two values are equal in debug builds.
@@ -147,8 +139,6 @@ inline int getAmountOfFreeRam() {
 /**
  * @brief Asserts that RAM left is not 0 prints ram left.
  */
-#define ASSERT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, "no more RAM left"); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" KB\n"))
+#define ASSERT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, F("no more RAM left")); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" KB\n"))
 
-#endif
-
-
+#endif

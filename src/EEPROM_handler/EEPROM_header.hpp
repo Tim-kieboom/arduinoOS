@@ -8,7 +8,6 @@
 constexpr uint8_t FAT_MAX_NUM_FILES = 10;
 
 namespace EEPROM_Header{
-
   constexpr size_t NUM_FILES_INDEX = 0;
   constexpr size_t FILE_STORE_INDEX = 1;
   constexpr size_t FILE_STORE_LEN = static_cast<size_t>(roundUp(FAT_MAX_NUM_FILES / 8.0));

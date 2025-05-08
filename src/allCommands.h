@@ -68,7 +68,8 @@ Task temp(InputBuffer& input) {
 const CommandType _ptr_allCommands[] = {
     {"help", &commandFunc_printAllCommands},
     {"store", &commandFunc_store},
-    {"retrieve", &commandFunc_retrieve}, //todo
+    {"retrieve", &commandFunc_retrieve},
+    {"erase", &commandFunc_erase},
     {"files", &commandFunc_files},
     {"freespace", &commandFunc_freespace}, //todo
     {"clearall", &commandFunc_clearall},
