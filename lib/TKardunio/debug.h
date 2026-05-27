@@ -1,8 +1,6 @@
 /*
 Tim Kieboom 1025003
 */
-#ifndef DEBUG_H
-#define DEBUG_H
 #pragma once
 
 // To enable (debug mode), leave the line below uncommented.
@@ -35,8 +33,3 @@ inline void printM(Args&&... args) {
 #define DEBUG_PRINT(msg) IF_DEBUG(Serial.print(msg))
 #define DEBUG_PRINTLN(msg) IF_DEBUG(Serial.println(msg))
 #define DEBUG_PRINTM(...) IF_DEBUG(printM(__VA_ARGS__))
-
-
-
-
-#endif

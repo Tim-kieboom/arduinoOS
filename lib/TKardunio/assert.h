@@ -1,8 +1,6 @@
 /*
 Tim Kieboom 1025003
 */
-#ifndef TKARDUINO_ASSERT_H
-#define TKARDUINO_ASSERT_H
 #pragma once
 
 #include <Arduino.h>
@@ -10,20 +8,21 @@ Tim Kieboom 1025003
 
 inline int getAmountOfFreeRam() {
     extern int __heap_start, *__brkval;
-    int v;
-    return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
+    int ref;
+    return (int)&ref - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
 }
 
+#define UNREACHABLE __builtin_unreachable()
+
 #ifdef ARDUINO_AVR_UNO
-#define RESET_ARDUINO asm volatile(" jmp 0 ")
+#define RESET_ARDUINO asm volatile(" jmp 0 "); UNREACHABLE
 #define PANIC Serial.println(F("!!panic!! restarting arduino")); delay(500); RESET_ARDUINO
 #else 
 #define RESET_ARDUINO PANIC; Serial.print(F("define 'RESET_ARDUINO' not found for this platfrom"))
 #define PANIC Serial.print(F("!!panic!! exiting program")); delay(500); exit(1)
 #endif
 
-#define _ASSERT_CUSTOM(condition, extra) IF_DEBUG(                          \                                                          
-    if (!(condition)) {                                                     \
+#define _ASSERT_MSG(condition, extra)                                       \
         printM(                                                             \
             '\n',                                                           \
             F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"),                          \
@@ -36,9 +35,14 @@ inline int getAmountOfFreeRam() {
         Serial.println(F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"));                \
         delay(500); /*give micro controller some time to print out assert*/ \
         PANIC;                                                              \
-        while(1); /*while(1) is just for the compiler plz ignore*/          \
-    }                                                                       \
-) 
+        while(1); /*while(1) is just for the compiler plz ignore*/           
+
+#define _ASSERT_CUSTOM(condition, extra) IF_DEBUG(  \
+    if (!(condition)) {                             \
+        _ASSERT_MSG(condition, extra)               \
+    }                                               \
+)                                                   \
+
 #define _ASSERT_CMP(a, cmp, b) _ASSERT_CUSTOM(a cmp b, printM(F("(left: '"), a, F("', right: '"), b, F("')\n")))
 
 /**
@@ -69,10 +73,9 @@ inline int getAmountOfFreeRam() {
 /**
  * @brief Mark code paths that are not yet implemented.
  *
- * In debug mode, always fails with "not yet implemented" message.
- * In release mode, does nothing.
+ * always fails with "not yet implemented" message.
  */
-#define ASSERT_TODO ASSERT_PRINT(false, F("not yet implemented"))
+#define TODO _ASSERT_MSG(false, Serial.println(F("not yet implemented"))); RESET_ARDUINO
 
 /**
  * @brief asserts that alloc was successfull.
@@ -139,6 +142,4 @@ inline int getAmountOfFreeRam() {
 /**
  * @brief Asserts that RAM left is not 0 prints ram left.
  */
-#define ASSERT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, F("no more RAM left")); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" KB\n"))
-
-#endif
+#define ASSERT_PRINT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, F("no more RAM left")); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" KB\n"))
