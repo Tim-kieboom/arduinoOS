@@ -41,9 +41,10 @@ namespace commandFunctions {
         TODO;
     }
 
-    Task store(MutRef<input::Buffer> inputRef) {
+    Task store(MutRef<input::Buffer> input) {
         static auto state = StoreState();
-        Task await = innerStore(inputRef, mutRef(state));
+
+        Task await = innerStore(input, out(state));
         if(await.isDone)
             state = StoreState();
         
@@ -89,7 +90,7 @@ namespace commandFunctions {
         if(!hasArgumentCount(input.ref, 0))
             return Task::Done();
 
-        auto kb = F("\tKB|\n");
+        auto kb = F("\tBytes|\n");
         auto indent F("      "); 
         auto files = F("\t\tFiles|\n");
         auto seperator = F("------------------------\n");
@@ -100,6 +101,7 @@ namespace commandFunctions {
         printM(
             seperator,
             F("version: "), ARDUINO_OS_VERSION_MAJOR, '.', ARDUINO_OS_VERSION_MINOR, '\n',
+            F("platform: "), ARDUINO_OS_PLATFORM, '\n',
             F("[FAT] space max:    |"), filesMax, files, 
                 indent, F("space left:   |"), filesMax - filesLen, files,
                 indent, F("amount files: |"), filesLen, files,
@@ -145,31 +147,30 @@ namespace commandFunctions {
         auto& state = stateRef.ref;
 
         if(state.first) {
-
             if(!hasArgumentCount(input, 3)) {
                 return Task::Done();
             }
 
-            auto error = input.getToken(mutRef(state.file.name), 1);
+            auto error = input.getToken(out(state.file.name), 1);
             if(error) {
                 printM(F("!!error!! tried to get first argument\n"), error, '\n');
                 return Task::Done();
             }
             
             StrSlice sizeStr;
-            error = input.getToken(mutRef(sizeStr), 2);
+            error = input.getToken(out(sizeStr), 2);
             if(error) {
                 printM(F("!!error!! tried to get second argument\n"), error, '\n');
                 return Task::Done();
             }
 
-            error = input.getToken(mutRef(state.file.data), 3);
+            error = input.getToken(out(state.file.data), 3);
             if(error) {
                 printM(F("!!error!! tried to get third argument\n"), error, '\n');
                 return Task::Done();
             }
 
-            error = parseU8(sizeStr, mutRef(state.file.size));
+            error = parseU8(sizeStr, out(state.file.size));
             if(error) {
                 Serial.print(F("!!error!! tried to parse "));
                 sizeStr.println();
@@ -180,7 +181,7 @@ namespace commandFunctions {
             state.first = false;
         }
 
-        Task await = fileSystem::store(mutRef(state.storeState), state.file);
+        Task await = fileSystem::store(out(state.storeState), state.file);
         if(await.isDone) {
             return Task::Done();
         }
@@ -189,10 +190,11 @@ namespace commandFunctions {
     }
 }
 
+/** Validates that the input has the expected number of arguments (excluding the command name). */
 inline bool hasArgumentCount(input::Buffer const& input, int shouldBe) {
     if(input.tokenEndsLen-1 != shouldBe){
         
-        int numArgs =- (input.tokenEndsLen==0) ? 0 : input.tokenEndsLen-1;
+        int numArgs = (input.tokenEndsLen==0) ? 0 : input.tokenEndsLen-1;
         printM(F("!!error!! command should have "), shouldBe, F(" arguments has: '"), numArgs, F("'\n"));
         return false;
     }
@@ -214,10 +216,10 @@ inline const Fstr* getHelpMessage() {
         "\n\t// remove file"
         "\n\t-erase \t\t<file_name>"                      
         "\n"
-        "\n\t// ??"
+        "\n\t// show all files"
         "\n\t-files"                                       
         "\n"
-        "\n\t// ??"
+        "\n\t// show free space in fileSystem"
         "\n\t-freespace"                                  
         "\n"
         "\n\t// run program in file"

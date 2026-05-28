@@ -18,7 +18,7 @@ all commands:
     // remove file
     -erase <file_name>  
 
-    // ??
+    // show all files
     -files
 
     // ??
@@ -45,32 +45,64 @@ all commands:
     -sysinfo
 */
 
+/// Function pointer type for all shell command implementations.
 typedef Task (*CommandFuncPtr)(MutRef<input::Buffer> input);
+
 namespace commandFunctions {
 
+    /** @brief Runs a program stored in a file. */
     Task run(MutRef<input::Buffer> input);
+
+    /** @brief Terminates a running process by ID. */
     Task kill(MutRef<input::Buffer> input);
+
+    /** @brief Prints the help message listing all commands. */
     Task help(MutRef<input::Buffer> input);
+
+    /** @brief Stores a new file in the file system. */
     Task store(MutRef<input::Buffer> input);
+
+    /** @brief Removes a file by name. */
     Task erase(MutRef<input::Buffer> input);
+
+    /** @brief Lists all stored files. */
     Task files(MutRef<input::Buffer> input);
+
+    /** @brief Resumes a suspended process by ID. */
     Task resume(MutRef<input::Buffer> input);
+
+    /** @brief Restarts the OS. */
     Task restart(MutRef<input::Buffer> input);
+
+    /** @brief Suspends a running process by ID. */
     Task suspend(MutRef<input::Buffer> input);
+
+    /** @brief Receives/retrieves a file by name. */
     Task recieve(MutRef<input::Buffer> input);
+
+    /** @brief Displays system information (RAM, files, version, etc.). */
     Task sysinfo(MutRef<input::Buffer> input);
+
+    /** @brief Clears all data from the file system. */
     Task clearall(MutRef<input::Buffer> input);
+
+    /** @brief Shows available free space on the system. */
     Task freespace(MutRef<input::Buffer> input);
 
+    /// Looks up a command by name and returns its function pointer, or nullptr if not found.
     CommandFuncPtr find(StrSlice name);
 
     #define __CMD(fn) {StrSlice(#fn, sizeof(#fn)-1), fn}
+
+    /// Entry mapping a command name to its handler function.
     struct CommandEntry {
-        StrSlice name; 
-        CommandFuncPtr functionPtr;
+        StrSlice name;              ///< The command name string.
+        CommandFuncPtr functionPtr; ///< Pointer to the command handler.
     };
 
     constexpr usize commandsLen = 13;
+    
+    /// Table of all available commands.
     constexpr CommandEntry commands[commandsLen] = {
         __CMD(run),
         __CMD(kill),

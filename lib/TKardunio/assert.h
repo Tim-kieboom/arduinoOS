@@ -6,21 +6,29 @@ Tim Kieboom 1025003
 #include <Arduino.h>
 #include "debug.h"
 
+/** Returns the amount of free RAM in bytes by measuring stack distance from the heap. */
 inline int getAmountOfFreeRam() {
     extern int __heap_start, *__brkval;
     int ref;
     return (int)&ref - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
 }
 
+/** Marks a code path as unreachable (compiler hint). */
 #define UNREACHABLE __builtin_unreachable()
 
 #ifdef ARDUINO_AVR_UNO
+/// Total RAM available on the target platform (2048 bytes for ATmega328P).
 #define RAM_AMOUNT 2048
+/** Resets the Arduino by jumping to the reset vector. */
 #define RESET_ARDUINO asm volatile(" jmp 0 "); UNREACHABLE
+/** Prints a panic message and resets the Arduino. */
 #define PANIC Serial.println(F("!!panic!! restarting arduino")); delay(500); RESET_ARDUINO
 #else 
+/** Platform fallback: reset behaviour must be defined per platform. */
 #define RESET_ARDUINO PANIC; Serial.print(F("define 'RESET_ARDUINO' not found for this platfrom"))
+/** Prints a panic message and exits the program. */
 #define PANIC Serial.print(F("!!panic!! exiting program")); delay(500); exit(1)
+/** Placeholder: RAM_AMOUNT must be defined for the target platform. */
 #define RAM_AMOUNT Serial.println("RAM_AMOUNT not supported in platform"); PANIC;
 #endif
 
@@ -144,4 +152,4 @@ inline int getAmountOfFreeRam() {
 /**
  * @brief Asserts that RAM left is not 0 prints ram left.
  */
-#define ASSERT_PRINT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, F("no more RAM left")); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" KB\n"))
+#define ASSERT_PRINT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, F("no more RAM left")); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" BYTES\n"))

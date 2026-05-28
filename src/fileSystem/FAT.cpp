@@ -23,9 +23,9 @@ namespace fileSystem {
                 return false;
             
             auto& fatEntry = entry.ref;
-            getEntry_name(fileIndex, mutRef(fatEntry.name));
-            getEntry_size(fileIndex, mutRef(fatEntry.size));
-            getEntry_address(fileIndex, mutRef(fatEntry.address));
+            getEntry_name(fileIndex, out(fatEntry.name));
+            getEntry_size(fileIndex, out(fatEntry.size));
+            getEntry_address(fileIndex, out(fatEntry.address));
             return true;
         }
 

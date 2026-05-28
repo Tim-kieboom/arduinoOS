@@ -8,7 +8,7 @@ using namespace fileSystem;
 namespace fileStore {
 
     const Fstr* setFile(u8 index, bool value) {
-        ASSERT_SMALLER(index, (EEPROM_Header::FILE_STORE_LEN * 8)-1);
+        ASSERT_SMALLER(index, EEPROM_Header::FILE_STORE_LEN * 8);
         if(index > EEPROM_Header::FILE_STORE_LEN * 8)
             return F("!!error!! fileIndex is out of bounds");
 

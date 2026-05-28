@@ -45,7 +45,7 @@ namespace fileSystem {
         state.fatEntry.setName(file.name);
 
         bool exists = false;
-        Task await = doesNameExist(mutRef(state.i), file.name.asPtr(), mutRef(exists));
+        Task await = doesNameExist(out(state.nameExistIndex), file.name.asPtr(), out(exists));
         if(!await.isDone) 
             return Task::Pending();
 
@@ -78,7 +78,7 @@ namespace fileSystem {
         }
         
         char nameBuffer[DATA_SIZE];
-        if(!FAT::entry_name(i, mutRef(nameBuffer)))
+        if(!FAT::entry_name(i, out(nameBuffer)))
             return Task::Pending();
         
         if(strEquals(name, nameBuffer)) {
