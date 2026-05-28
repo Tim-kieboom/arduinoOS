@@ -1,0 +1,3 @@
+#pragma once
+#define ARDUINO_OS_VERSION_MAJOR 1
+#define ARDUINO_OS_VERSION_MINOR 0

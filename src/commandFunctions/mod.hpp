@@ -45,7 +45,7 @@ all commands:
     -sysinfo
 */
 
-typedef Task (*CommandFunc)(MutRef<input::Buffer> input);
+typedef Task (*CommandFuncPtr)(MutRef<input::Buffer> input);
 namespace commandFunctions {
 
     Task run(MutRef<input::Buffer> input);
@@ -62,12 +62,12 @@ namespace commandFunctions {
     Task clearall(MutRef<input::Buffer> input);
     Task freespace(MutRef<input::Buffer> input);
 
-    CommandFunc find(Slice<char> name);
+    CommandFuncPtr find(StrSlice name);
 
-    #define __CMD(fn) {Slice<char>(#fn, sizeof(#fn)-1), fn}
+    #define __CMD(fn) {StrSlice(#fn, sizeof(#fn)-1), fn}
     struct CommandEntry {
-        Slice<char> name; 
-        CommandFunc functionPtr;
+        StrSlice name; 
+        CommandFuncPtr functionPtr;
     };
 
     constexpr usize commandsLen = 13;

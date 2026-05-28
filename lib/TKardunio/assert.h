@@ -15,17 +15,19 @@ inline int getAmountOfFreeRam() {
 #define UNREACHABLE __builtin_unreachable()
 
 #ifdef ARDUINO_AVR_UNO
+#define RAM_AMOUNT 2048
 #define RESET_ARDUINO asm volatile(" jmp 0 "); UNREACHABLE
 #define PANIC Serial.println(F("!!panic!! restarting arduino")); delay(500); RESET_ARDUINO
 #else 
 #define RESET_ARDUINO PANIC; Serial.print(F("define 'RESET_ARDUINO' not found for this platfrom"))
 #define PANIC Serial.print(F("!!panic!! exiting program")); delay(500); exit(1)
+#define RAM_AMOUNT Serial.println("RAM_AMOUNT not supported in platform"); PANIC;
 #endif
 
 #define _ASSERT_MSG(condition, extra)                                       \
         printM(                                                             \
             '\n',                                                           \
-            F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"),                          \
+            F("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"), '\n',                      \
             F("Assertion '"), F(#condition), F("' failed! at:\n"),          \
             F("file: "), F(__FILE__), '\n',                                 \
             F("func: "), __func__, '\n',                                    \

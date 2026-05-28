@@ -1,10 +1,43 @@
 #include "mod.hpp"
 
+inline bool isEndOfLine(const char ch);
+inline bool isEndOfToken(const char ch);
+
 namespace input {
     
+    Task Buffer::readTokens() {
+        if(shouldResetBuffer)
+            reset();
+
+        const int raw = Serial.read();
+        if (raw < 0)
+            return Task::Pending();
+
+        const char ch = (char)raw;
+        if(!tryPush(isEndOfToken(ch) ? '\0' : ch))
+            return Task::Pending();
+
+        if(isEndOfLine(ch)) {
+            
+            if(bufferLen < 2) {
+                shouldResetBuffer = true;
+                return Task::Pending();
+            }
+
+            addEndIndex(bufferLen);
+            shouldResetBuffer = true;
+            return Task::Done();
+        }
+    
+        if(isEndOfToken(ch))
+            addEndIndex(bufferLen);
+
+        return Task::Pending();
+    }
+
     bool Buffer::tryPush(const char ch) {
         if(bufferLen >= input::BUFFER_SIZE) {
-            printM('\n', F("!!error!! input to large"), '\n', F(">> "));
+            printM(F("\n!!error!! input to large\n"), F(">> "));
             Serial.flush();
             reset();
             return false;
@@ -14,29 +47,40 @@ namespace input {
         return true;
     }
 
-    bool Buffer::getToken(MutRef<Slice<char>> slice, const u8 index) {
+    const Fstr* Buffer::getToken(MutRef<StrSlice> slice, const u8 index) {
         
-        if(index >= this->tokensLen)
-            return false;
+        if(index >= this->tokenEndsLen) {
+            auto error = F("!!error!! token not found");
+            ASSERT_PRINT(false, error);
+            return error;
+        }
         
-        u8 tokenStart = (index == 0) ? 0 : this->tokens[index-1];
-        u8 tokenEnd = this->tokens[index];
-        
-        slice.ref = Slice<char>(this->buffer, tokenEnd-1, tokenStart);
-        return true;
+        u8 offset = (index > 0) ? this->tokenEnds[index-1] : 0;
+        u8 len = this->tokenEnds[index] - offset - 1;
+
+        slice.ref = StrSlice(this->buffer, len, offset);
+        return nullptr;
     }
 
     void Buffer::addEndIndex(const u8 index) {
-        if(tokensLen >= input::TOKENS_SIZE)
+        if(tokenEndsLen >= input::TOKENS_SIZE)
             return;
 
-        tokens[tokensLen++] = index;
+        tokenEnds[tokenEndsLen++] = index;
         return;
     }
 
     void Buffer::reset() {
         bufferLen = 0;
-        tokensLen = 0;
+        tokenEndsLen = 0;
         shouldResetBuffer = false;
     }
+}
+
+inline bool isEndOfToken(const char ch) {
+    return isSpace(ch);
+}
+
+inline bool isEndOfLine(const char ch) {
+    return ch == '\n' || ch == '\r' || ch == '\0';
 }
