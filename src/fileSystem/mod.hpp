@@ -19,8 +19,9 @@ namespace fileSystem {
     /// Stores a file asynchronously. Call repeatedly until the returned Task is done.
     Task store(MutRef<StoreState> state, FileInfo const& info);
     
-    constexpr int ADDRESS_ERROR = -1;
-    Task freeSpace(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
+    constexpr int FREESPACE_ERROR = -1;
+    Task findFreeSpace(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
+    Task largestFreeSpace(MutRef<FreeSpaceState> state, MutRef<u16> maxGap, MutRef<int> result);
     /// prints all file names an sizes in FAT 
     Task printFiles(MutRef<PrintFilesState> state);
 }

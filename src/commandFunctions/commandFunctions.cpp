@@ -129,10 +129,27 @@ namespace commandFunctions {
     }
 
     Task freespace(MutRef<input::Buffer> input) {
-        if(!hasArgumentCount(input.ref, 0))
+        static u16 maxGap = 0;
+        static int result = 0;
+        static auto state = fileSystem::FreeSpaceState();
+        
+        if(state.first() && !hasArgumentCount(input.ref, 0))
             return Task::Done();
 
-        TODO;
+        Task await = fileSystem::largestFreeSpace(out(state), out(maxGap), out(result));
+        if(await.isDone) {
+            state.reset();
+            if(result == fileSystem::FREESPACE_ERROR) {
+                Serial.println(F("freespace not found"));
+            } 
+            else {
+                printM(F("freespace: "), maxGap, '\n');
+            }
+            maxGap = 0;
+            result = 0;
+        }
+        
+        return await;
     }
 
     Task find(StrSlice name, MutRef<usize> iRef, MutRef<CommandFunctionsPtr> outputRef) {

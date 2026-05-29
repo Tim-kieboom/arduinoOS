@@ -61,7 +61,6 @@ namespace fileSystem {
         }
 
         state.fatEntry.setName(file.name);
-
         if(file.data.len() > BUFFER_SIZE) {
             Serial.println(F("!!error!! files data is to big"));
             state.taskId = StoreState::End;
@@ -92,11 +91,11 @@ namespace fileSystem {
     inline void store_writeFAT(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
 
-        Task await = freeSpace(out(state.freeSpaceState), out(state.writeAddress), file.data.len());
+        Task await = findFreeSpace(out(state.freeSpaceState), out(state.writeAddress), file.data.len());
         if(!await.isDone)
             return;
 
-        if (state.writeAddress == ADDRESS_ERROR) {
+        if (state.writeAddress == FREESPACE_ERROR) {
             Serial.println(F("!!error!! not enough free space in EEPROM for file data"));
             state.taskId = StoreState::End;
             return;

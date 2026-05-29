@@ -49,11 +49,8 @@ namespace input {
 
     const Fstr* Buffer::getToken(MutRef<StrSlice> slice, const u8 index) {
         
-        if(index >= this->tokenEndsLen) {
-            auto error = F("!!error!! token not found");
-            ASSERT_PRINT(false, error);
-            return error;
-        }
+        if(index >= this->tokenEndsLen)
+            return F("!!error!! token not found");
         
         u8 offset = (index > 0) ? this->tokenEnds[index-1] : 0;
         u8 len = this->tokenEnds[index] - offset - 1;

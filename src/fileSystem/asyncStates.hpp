@@ -28,6 +28,10 @@ namespace fileSystem {
             return addresses[i];
         }
 
+        bool first() {
+            return taskId == Begin;
+        }
+
         void reset() {
             this->i = 0;
             this->j = 0;
