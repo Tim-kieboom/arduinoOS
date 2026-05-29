@@ -76,13 +76,13 @@ namespace fileSystem {
         memoryIndex += sizeof(u16);
         EEPROM.put(memoryIndex, this->size);
 
-        EEPROM.update(FAT_Header::NUM_FILES_INDEX, FATlen+1);
         auto error = fileStore::set(fileIndex, FileFlag::HasFile);
         if(error) {
             Serial.println(error);
             return false;
         }
-
+        
+        EEPROM.update(FAT_Header::NUM_FILES_INDEX, FATlen+1);
         ASSERT_EQ(FATlen+1, FAT::numFiles());
         DEBUG_PRINTM(F("(debug only) FAT size: "), FAT::numFiles(), '\n');
         return true;

@@ -7,8 +7,8 @@ namespace fileSystem {
         u16 start;
         u16 end;
     };
-
-    struct FreeSpaceState {
+    
+    struct FreeSpaceState: public IAsyncState {
         enum TaskId {
             Begin,
             CollectAddresses,
@@ -36,7 +36,7 @@ namespace fileSystem {
     };
 
     /// Async state holder for the file-store operation.
-    struct StoreState {
+    struct StoreState: public IAsyncState {
         enum TaskId {
             CheckName,
             CheckForDuplicate,
@@ -49,11 +49,13 @@ namespace fileSystem {
         TaskId taskId = CheckName;
         FATEntry fatEntry = FATEntry(); ///< The FAT entry being written.
         FreeSpaceState freeSpaceState = FreeSpaceState();
+        int writeAddress = 0;            ///< Persistent address from freeSpace (survives async calls).
 
         void reset() {
             this->freeSpaceState.reset();
             this->taskId = CheckName;
             this->i = 0;
+            this->writeAddress = 0;
         }
     };
 

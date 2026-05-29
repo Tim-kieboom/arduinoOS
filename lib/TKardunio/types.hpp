@@ -65,3 +65,8 @@ template<typename T>
 inline MutRef<T> out(T& ref) {
     return MutRef<T>(ref);
 }
+
+class IAsyncState {
+public:
+    virtual void reset() = 0;
+};

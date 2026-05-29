@@ -10,10 +10,10 @@ static void swap(fileSystem::EntryAddress arr[10], u8 i1, u8 i2) {
 namespace fileSystem {
     constexpr u16 dataStart = FAT_Header::SIZE + FAT_Header::MAX_NUM_FILES * FATEntry::SIZEOF + 1;
 
-    inline Task freeSpace_begin(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
-    inline Task freeSpace_getGap(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
-    inline Task freeSpace_bubbleSortEntrys(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
-    inline Task freeSpace_collectAddresses(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
+    inline void freeSpace_begin(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
+    inline void freeSpace_getGap(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
+    inline void freeSpace_bubbleSortEntrys(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
+    inline void freeSpace_collectAddresses(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
 
     Task freeSpace(MutRef<FreeSpaceState> stateRef, MutRef<int> addressRef, u16 size) {
         auto& state = stateRef.ref;
@@ -21,16 +21,20 @@ namespace fileSystem {
 
         switch(state.taskId) {
             case FreeSpaceState::Begin:
-                return freeSpace_begin(out(state), out(address), size);
+                freeSpace_begin(out(state), out(address), size);    
+                return Task::Pending();
             
             case FreeSpaceState::CollectAddresses:
-                return freeSpace_collectAddresses(out(state), out(address), size);
+                freeSpace_collectAddresses(out(state), out(address), size);
+                return Task::Pending();
         
             case FreeSpaceState::BubbleSortEntrys:
-                return freeSpace_bubbleSortEntrys(out(state), out(address), size);
+                freeSpace_bubbleSortEntrys(out(state), out(address), size);
+                return Task::Pending();
             
             case FreeSpaceState::GetGap:
-                return freeSpace_getGap(out(state), out(address), size);
+                freeSpace_getGap(out(state), out(address), size);
+                return Task::Pending();
 
             case FreeSpaceState::End:
                 return Task::Done();
@@ -41,45 +45,46 @@ namespace fileSystem {
         return Task::Done();
     }
 
-    inline Task freeSpace_begin(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
+    inline void freeSpace_begin(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
         auto& state = stateRef.ref;
         auto enoughSpace = [&]() {return EEPROM.length() - dataStart >= size;};
 
         state.numFiles = FAT::numFiles();
         if(state.numFiles == 0) {
             address.ref = enoughSpace() ? dataStart : ADDRESS_ERROR;
-            return Task::Done();
+            state.taskId = FreeSpaceState::End;
+            return;
         }
 
         state.taskId = FreeSpaceState::CollectAddresses;
-        return Task::Pending();
     }
 
-    inline Task freeSpace_collectAddresses(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
+    inline void freeSpace_collectAddresses(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
         auto& state = stateRef.ref;
         auto endLoop = [&](){return state.i >= state.numFiles;};
 
         if(endLoop()) {
             state.i = 0;
             state.taskId = FreeSpaceState::BubbleSortEntrys;
-            return Task::Pending();
+            return;
         }
         
         FATEntry entry;
         if(!FAT::entry(state.i, out(entry))) {
             DEBUG_PRINTM(F("!!error!! in freeSpace_collectAddresses() entry "), state.i, F(" not found\n"));
             address.ref = ADDRESS_ERROR;
-            return Task::Done();
+            state.taskId = FreeSpaceState::End;
+            return;
         }
 
         state.addressAt(state.i).start = entry.address;
         state.addressAt(state.i).end = entry.address + entry.size;
 
         state.i++;
-        return Task::Pending();
+        return;
     }
 
-    inline Task freeSpace_bubbleSortEntrys(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
+    inline void freeSpace_bubbleSortEntrys(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
         auto& state = stateRef.ref;
         auto& i = state.i;
         auto& j = state.j;
@@ -121,23 +126,22 @@ namespace fileSystem {
             if(state.addressAt(0).start - dataStart >= size) {
                 address.ref = dataStart;
                 state.taskId = FreeSpaceState::End;
-                return Task::Done();
+                return;
             }
             
             i = 0;
             j = 0;
             state.taskId = FreeSpaceState::GetGap;
-            return Task::Pending();
+            return;
         }
 
         if(state.addressAt(j).start > state.addressAt(j+1).start)
             swap(state.addresses, j, j+1); 
 
         j++;
-        return Task::Pending();
     }
 
-    inline Task freeSpace_getGap(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
+    inline void freeSpace_getGap(MutRef<FreeSpaceState> stateRef, MutRef<int> address, u16 size) {
         auto& state = stateRef.ref;
         auto& i = state.i;
         auto endLoop = [&]() {return i >= state.numFiles-1;};
@@ -151,16 +155,15 @@ namespace fileSystem {
                 address.ref = ADDRESS_ERROR;
             
             state.taskId = FreeSpaceState::End;
-            return Task::Done();
+            return;
         }
 
         u16 gap = state.addressAt(i+1).start - state.addressAt(i).end;
         if(gap >= size) {
             address.ref = state.addressAt(i).end;
             state.taskId = FreeSpaceState::End;
-            return Task::Done(); 
+            return; 
         }
         i++;
-        return Task::Pending();
     }
 }

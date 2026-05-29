@@ -7,27 +7,32 @@ bool strEquals(const char* self, const char* other) {
 }
 
 namespace fileSystem {
-    inline Task store_checkName(MutRef<StoreState> state, FileInfo const& file);
-    inline Task store_writeData(MutRef<StoreState> state, FileInfo const& file);
-    inline Task store_writeFAT(MutRef<StoreState> stateRef, FileInfo const& file);
     inline Task doesNameExist(MutRef<u16> i, const char* name, MutRef<bool> exists);
-    inline Task store_checkForDuplicate(MutRef<StoreState> state, FileInfo const& file);
+    
+    inline void store_checkName(MutRef<StoreState> state, FileInfo const& file);
+    inline void store_writeData(MutRef<StoreState> state, FileInfo const& file);
+    inline void store_writeFAT(MutRef<StoreState> stateRef, FileInfo const& file);
+    inline void store_checkForDuplicate(MutRef<StoreState> state, FileInfo const& file);
 
     Task store(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
 
         switch(state.taskId) {
             case StoreState::CheckName:
-                return store_checkName(out(state), file);
+                store_checkName(out(state), file);
+                return Task::Pending();
 
             case StoreState::CheckForDuplicate:
-                return store_checkForDuplicate(out(state), file);
+                store_checkForDuplicate(out(state), file);
+                return Task::Pending();
             
             case StoreState::WriteFAT:
-                return store_writeFAT(out(state), file);
+                store_writeFAT(out(state), file);
+                return Task::Pending();
 
             case StoreState::WriteData:
-                return store_writeData(out(state), file);
+                store_writeData(out(state), file);
+                return Task::Pending();
 
             case StoreState::End: 
                 return Task::Done();
@@ -38,85 +43,91 @@ namespace fileSystem {
         return Task::Done();
     }
 
-    inline Task store_checkName(MutRef<StoreState> stateRef, FileInfo const& file) {
+    inline void store_checkName(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
 
         auto error = checkName(file.name);
         if(error) {
             Serial.println(error);
-            return Task::Done();
+            state.taskId = StoreState::End;
+            return;
         }
         
         u8 numFiles = FAT::numFiles();
         if(numFiles >= FAT_Header::MAX_NUM_FILES) {
             Serial.println(F("!!error!! not more space left to store another file"));
-            return Task::Done();
+            state.taskId = StoreState::End;
+            return;
         }
 
         state.fatEntry.setName(file.name);
+
+        if(file.data.len() > BUFFER_SIZE) {
+            Serial.println(F("!!error!! files data is to big"));
+            state.taskId = StoreState::End;
+            return;
+        }
+
         state.taskId = StoreState::CheckForDuplicate;
-        return Task::Pending();
     }
 
-    inline Task store_checkForDuplicate(MutRef<StoreState> stateRef, FileInfo const& file) {
+    inline void store_checkForDuplicate(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
         
         bool exists = false;
         Task await = doesNameExist(out(state.i), file.name.asPtr(), out(exists));
         if(!await.isDone) 
-            return Task::Pending();
+            return;
 
         if(exists) {
             Serial.println(F("!!error!! fileName already exists"));
-            return Task::Done();
+            state.taskId = StoreState::End;
+            return;
         }
 
         state.i = 0;
         state.taskId = StoreState::WriteFAT;
-        return Task::Pending();
     }
 
-    inline Task store_writeFAT(MutRef<StoreState> stateRef, FileInfo const& file) {
+    inline void store_writeFAT(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
 
-        int address;
-        Task await = freeSpace(out(state.freeSpaceState), out(address), file.data.len());
+        Task await = freeSpace(out(state.freeSpaceState), out(state.writeAddress), file.data.len());
         if(!await.isDone)
-            return Task::Pending();
+            return;
 
-        if (address == ADDRESS_ERROR) {
+        if (state.writeAddress == ADDRESS_ERROR) {
             Serial.println(F("!!error!! not enough free space in EEPROM for file data"));
-            return Task::Done();
+            state.taskId = StoreState::End;
+            return;
         }
 
-        state.fatEntry.address = u16(address);
-
+        state.fatEntry.address = state.writeAddress;
         state.fatEntry.size = file.data.len();
         bool isSuccess = state.fatEntry.writeToEEPROM();
-        if(!isSuccess)
-            return Task::Done();
+        if(!isSuccess) {
+            state.taskId = StoreState::End;
+            return;
+        }
 
         state.taskId = StoreState::WriteData;
-        return Task::Pending();
     }
 
-    inline Task store_writeData(MutRef<StoreState> stateRef, FileInfo const& file) {
+    inline void store_writeData(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
 
         u16 address = state.fatEntry.address;
-        u16 len = file.data.len();
 
-        if(state.i >= len) {
+        if(state.i >= file.data.len()) {
             Serial.print(F("successfully stored file: `"));
             file.name.print();
             Serial.println('`');
             state.taskId = StoreState::End;
-            return Task::Done();
+            return;
         }
 
         EEPROM.write(state.i + address, file.data[state.i]);
         state.i++;
-        return Task::Pending();
     }
 
     inline Task doesNameExist(MutRef<u16> iRef, const char* name, MutRef<bool> exists) {

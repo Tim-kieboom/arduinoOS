@@ -4,7 +4,7 @@
 
 namespace commandFunctions {
     /// Async state holder for the `store` command, persists across loop cycles.
-    struct StoreState {
+    struct StoreState: public IAsyncState {
         enum TaskId {
             CheckName,
             ArgumentsParsed,

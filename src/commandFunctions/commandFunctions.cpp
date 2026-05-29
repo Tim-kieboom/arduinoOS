@@ -138,8 +138,9 @@ namespace commandFunctions {
     Task find(StrSlice name, MutRef<usize> iRef, MutRef<CommandFunctionsPtr> outputRef) {
         auto& i = iRef.ref;
         auto& output = outputRef.ref;
+        auto endLoop = [&]() {return i >= commandsLen;};
 
-        if(i >= commandsLen) {
+        if(endLoop()) {
             output = nullptr;
             return Task::Done();
         }
@@ -210,9 +211,8 @@ namespace commandFunctions {
         
 
         Task await = fileSystem::store(out(state.storeState), state.file);
-        if(await.isDone) {
+        if(await.isDone)
             return Task::Done();
-        }
 
         return Task::Pending();
     }
