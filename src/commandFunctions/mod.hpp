@@ -46,7 +46,8 @@ all commands:
 */
 
 /// Function pointer type for all shell command implementations.
-typedef Task (*CommandFuncPtr)(MutRef<input::Buffer> input);
+typedef Task (*CommandFunctionsPtr)(MutRef<input::Buffer> input);
+constexpr CommandFunctionsPtr NO_COMMAND = nullptr; 
 
 namespace commandFunctions {
 
@@ -89,33 +90,41 @@ namespace commandFunctions {
     /** @brief Shows available free space on the system. */
     Task freespace(MutRef<input::Buffer> input);
 
-    /// Looks up a command by name and returns its function pointer, or nullptr if not found.
-    CommandFuncPtr find(StrSlice name);
+    /// Looks up a command by name and returns its function pointer in ouput, or nullptr if not found.
+    Task find(StrSlice name, MutRef<usize> i, MutRef<CommandFunctionsPtr> output);
 
-    #define __CMD(fn) {StrSlice(#fn, sizeof(#fn)-1), fn}
+    /**
+     * @brief Runs the active command function.
+     * @param inputRef  Mutable reference to the input buffer.
+     * @param commandRef Mutable reference to the current command pointer.
+     * 
+     * Clears the command and prints the prompt prefix when the command task is done.
+     */
+    void run(MutRef<input::Buffer> inputRef, MutRef<CommandFunctionsPtr> commandRef);
 
+    #define __NEW_CMD(fn) {StrSlice(#fn, sizeof(#fn)-1), fn}
     /// Entry mapping a command name to its handler function.
     struct CommandEntry {
-        StrSlice name;              ///< The command name string.
-        CommandFuncPtr functionPtr; ///< Pointer to the command handler.
+        StrSlice name;                      ///< The command name string.
+        CommandFunctionsPtr functionPtr;    ///< Pointer to the command handler.
     };
 
     constexpr usize commandsLen = 13;
-    
+
     /// Table of all available commands.
     constexpr CommandEntry commands[commandsLen] = {
-        __CMD(run),
-        __CMD(kill),
-        __CMD(help),
-        __CMD(store),
-        __CMD(erase),
-        __CMD(files),
-        __CMD(resume),
-        __CMD(restart),
-        __CMD(recieve),
-        __CMD(suspend),
-        __CMD(sysinfo),
-        __CMD(clearall),
-        __CMD(freespace),
+        __NEW_CMD(run),
+        __NEW_CMD(kill),
+        __NEW_CMD(help),
+        __NEW_CMD(store),
+        __NEW_CMD(erase),
+        __NEW_CMD(files),
+        __NEW_CMD(resume),
+        __NEW_CMD(restart),
+        __NEW_CMD(recieve),
+        __NEW_CMD(suspend),
+        __NEW_CMD(sysinfo),
+        __NEW_CMD(clearall),
+        __NEW_CMD(freespace),
     };
 }

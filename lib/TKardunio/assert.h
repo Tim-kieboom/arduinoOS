@@ -85,7 +85,7 @@ inline int getAmountOfFreeRam() {
  *
  * always fails with "not yet implemented" message.
  */
-#define TODO _ASSERT_MSG(false, Serial.println(F("not yet implemented"))); RESET_ARDUINO
+#define TODO _ASSERT_MSG(false, Serial.println(F("not yet implemented")))
 
 /**
  * @brief asserts that alloc was successfull.
@@ -153,3 +153,8 @@ inline int getAmountOfFreeRam() {
  * @brief Asserts that RAM left is not 0 prints ram left.
  */
 #define ASSERT_PRINT_RAM ASSERT_PRINT(getAmountOfFreeRam() != 0, F("no more RAM left")); DEBUG_PRINTM(F("\nRAM left: "), getAmountOfFreeRam(), F(" BYTES\n"))
+
+/**
+ * @brief Panics if called in debug builds.
+ */
+#define DEBUG_UNREACHABLE IF_DEBUG(_ASSERT_MSG(false, Serial.println("reached unreachable")))

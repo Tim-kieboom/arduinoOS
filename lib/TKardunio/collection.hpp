@@ -7,7 +7,7 @@ Tim Kieboom 1025003
 
 
 /**
- * @brief A non-owning view over a contiguous array of elements.
+ * @brief A non-owning view over a array of elements.
  * 
  * Provides read-only access to an array, with bound checking in debug mode.
  */
@@ -16,7 +16,7 @@ class Slice {
 private:
     T const* _ptr = nullptr;
     usize _len = 0;
-    
+
 public:
     /** @brief Construct an empty slice. */
     constexpr Slice() {}
@@ -42,7 +42,7 @@ public:
     /** @brief Returns true if both slices have the same length and contents. */
     bool equal(Slice<T> const& other) const {
         if(this->len() != other.len())
-        return false;
+            return false;
         
         for (usize i = 0; i < _len; i++) {
             if (_ptr[i] != other._ptr[i])

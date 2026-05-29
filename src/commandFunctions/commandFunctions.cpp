@@ -46,7 +46,7 @@ namespace commandFunctions {
 
         Task await = innerStore(input, out(state));
         if(await.isDone)
-            state = StoreState();
+            state.reset();
         
         return await;
     }
@@ -59,10 +59,16 @@ namespace commandFunctions {
     }
 
     Task files(MutRef<input::Buffer> input) {
-        if(!hasArgumentCount(input.ref, 0))
+        static auto state = fileSystem::PrintFilesState();
+        
+        if(state.first() && !hasArgumentCount(input.ref, 0))
             return Task::Done();
 
-        TODO;
+        Task await = fileSystem::printFiles(out(state));
+        if(await.isDone)
+            state.reset();
+
+        return await;
     }
 
     Task resume(MutRef<input::Buffer> input) {
@@ -97,7 +103,7 @@ namespace commandFunctions {
         
         auto freeRam = getAmountOfFreeRam();
         auto filesLen = fileSystem::FAT::numFiles();
-        auto filesMax = fileSystem::EEPROM_Header::FAT_MAX_NUM_FILES;
+        auto filesMax = fileSystem::FAT_Header::MAX_NUM_FILES;
         printM(
             seperator,
             F("version: "), ARDUINO_OS_VERSION_MAJOR, '.', ARDUINO_OS_VERSION_MINOR, '\n',
@@ -129,27 +135,42 @@ namespace commandFunctions {
         TODO;
     }
 
-    CommandFuncPtr find(StrSlice name) {
+    Task find(StrSlice name, MutRef<usize> iRef, MutRef<CommandFunctionsPtr> outputRef) {
+        auto& i = iRef.ref;
+        auto& output = outputRef.ref;
 
-        for(usize i = 0; i < commandsLen; i++) {
-            auto command = commands[i];
-            
-            if(command.name.equal(name)) {
-                return command.functionPtr;
-            }
+        if(i >= commandsLen) {
+            output = nullptr;
+            return Task::Done();
         }
+
+        auto& command = commands[i++];
+        if(command.name.equal(name)) {
+            output = command.functionPtr;
+            return Task::Done();
+        }
+
+        return Task::Pending();
+    }
+
+    void run(MutRef<input::Buffer> inputRef, MutRef<CommandFunctionsPtr> commandRef) {
+        auto& input = inputRef.ref;
+        auto& command = commandRef.ref;
         
-        return nullptr;
+        Task await = command(out(input));
+        if(await.isDone) {
+            command = NO_COMMAND;
+            Serial.print(F(">> "));
+        }
     }
 
     static Task innerStore(MutRef<input::Buffer> inputRef, MutRef<StoreState> stateRef) {
         auto& input = inputRef.ref;
         auto& state = stateRef.ref;
 
-        if(state.first) {
-            if(!hasArgumentCount(input, 3)) {
+        if(state.taskId == StoreState::CheckName) {
+            if(!hasArgumentCount(input, 3))
                 return Task::Done();
-            }
 
             auto error = input.getToken(out(state.file.name), 1);
             if(error) {
@@ -164,13 +185,8 @@ namespace commandFunctions {
                 return Task::Done();
             }
 
-            error = input.getToken(out(state.file.data), 3);
-            if(error) {
-                printM(F("!!error!! tried to get third argument\n"), error, '\n');
-                return Task::Done();
-            }
-
-            error = parseU8(sizeStr, out(state.file.size));
+            u8 size = 0;
+            error = parseU8(sizeStr, out(size));
             if(error) {
                 Serial.print(F("!!error!! tried to parse "));
                 sizeStr.println();
@@ -178,8 +194,20 @@ namespace commandFunctions {
                 return Task::Done();
             } 
 
-            state.first = false;
+            error = input.getToken(out(state.file.data), 3);
+            if(error) {
+                printM(F("!!error!! tried to get third argument\n"), error, '\n');
+                return Task::Done();
+            }
+
+            if(state.file.data.len() != size) {
+                Serial.println(F("!!error!! data length doesn't match size"));
+                return Task::Done();
+            }
+
+            state.taskId = StoreState::ArgumentsParsed;
         }
+        
 
         Task await = fileSystem::store(out(state.storeState), state.file);
         if(await.isDone) {

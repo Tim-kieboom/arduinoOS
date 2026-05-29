@@ -5,8 +5,13 @@ inline bool isNumber(int8_t currentDecimal) {
 }
 
 const Fstr* parseU8(StrSlice str, MutRef<u8> value) {
-    u16 number = 0;
+    if(str.len() == 0)
+        return F("!!error!! string is empty");
 
+    if(str[0] == '-')
+        return F("!!error!! string is negative number");
+    
+    u16 number = 0;
     for(usize i = 0; i < str.len(); i++) {
         number *= 10;
         u8 currentDecimal = (u8)(str[i] - '0');

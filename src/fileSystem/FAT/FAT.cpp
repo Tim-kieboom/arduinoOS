@@ -1,16 +1,16 @@
-#include "mod.hpp"
-#include "filestore.hpp"
+#include "../mod.hpp"
+#include "../filestore/mod.hpp"
 #include <EEPROM.h>
 
 namespace fileSystem {
 
     namespace FAT {
         inline void getEntry_size(uint fileIndex, MutRef<u8> size);
-        inline void getEntry_name(uint fileIndex, MutRef<char[DATA_SIZE]> name);
+        inline void getEntry_name(uint fileIndex, MutRef<char[BUFFER_SIZE]> name);
         inline void getEntry_address(uint fileIndex, MutRef<u16> address);
 
         u8 numFiles() {
-            return EEPROM.read(EEPROM_Header::NUM_FILES_INDEX);
+            return EEPROM.read(FAT_Header::NUM_FILES_INDEX);
         }
 
         void clearall() {
@@ -19,7 +19,7 @@ namespace fileSystem {
         }
 
         bool entry(u8 fileIndex, MutRef<FATEntry> entry) {
-            if(!fileStore::hasFile(fileIndex))
+            if(fileStore::at(fileIndex) == FileFlag::Empty)
                 return false;
             
             auto& fatEntry = entry.ref;
@@ -29,8 +29,8 @@ namespace fileSystem {
             return true;
         }
 
-        bool entry_name(u8 fileIndex, MutRef<char[DATA_SIZE]> name) {
-            if(!fileStore::hasFile(fileIndex))
+        bool entry_name(u8 fileIndex, MutRef<char[BUFFER_SIZE]> name) {
+            if(fileStore::at(fileIndex) == FileFlag::Empty)
                 return false;
             
             getEntry_name(fileIndex, name);
@@ -38,23 +38,23 @@ namespace fileSystem {
         }
 
         inline uint entry_memoryIndex(uint fileIndex) {
-            constexpr int firstFATIndex = EEPROM_Header::SIZE;
+            constexpr int firstFATIndex = FAT_Header::SIZE;
             return firstFATIndex + (FATEntry::SIZEOF * fileIndex);
         }
 
-        inline void getEntry_name(uint fileIndex, MutRef<char[DATA_SIZE]> name) {
+        inline void getEntry_name(uint fileIndex, MutRef<char[BUFFER_SIZE]> name) {
             uint address = entry_memoryIndex(fileIndex);
-            for(u8 i = 0; i < DATA_SIZE; i++)
+            for(u8 i = 0; i < BUFFER_SIZE; i++)
                 name.ref[i] = EEPROM.read(address++);
         }
 
         inline void getEntry_size(uint fileIndex, MutRef<u8> size) {
-            const uint i = entry_memoryIndex(fileIndex) + DATA_SIZE;
+            const uint i = entry_memoryIndex(fileIndex) + BUFFER_SIZE + sizeof(u16);
             EEPROM.get(i, size.ref);
         }
 
         inline void getEntry_address(uint fileIndex, MutRef<u16> address) {
-            const uint i = entry_memoryIndex(fileIndex) + DATA_SIZE + sizeof(u16);
+            const uint i = entry_memoryIndex(fileIndex) + BUFFER_SIZE;
             EEPROM.get(i, address.ref);
         }
     }
@@ -69,15 +69,15 @@ namespace fileSystem {
         }
 
         uint memoryIndex = FAT::entry_memoryIndex(fileIndex);
-        for(u8 i = 0; i < DATA_SIZE; i++)
+        for(u8 i = 0; i < BUFFER_SIZE; i++)
             EEPROM.put(memoryIndex++, this->name[i]);
 
         EEPROM.put(memoryIndex, this->address);
         memoryIndex += sizeof(u16);
         EEPROM.put(memoryIndex, this->size);
 
-        EEPROM.update(EEPROM_Header::NUM_FILES_INDEX, FATlen+1);
-        auto error = fileStore::setFile(fileIndex, fileStore::HAS_FILE);
+        EEPROM.update(FAT_Header::NUM_FILES_INDEX, FATlen+1);
+        auto error = fileStore::set(fileIndex, FileFlag::HasFile);
         if(error) {
             Serial.println(error);
             return false;
@@ -88,12 +88,12 @@ namespace fileSystem {
         return true;
     }
 
-    void FATEntry::setName(StrSlice& name) {
-        u8 len = min(name.len(), DATA_SIZE-1);
+    void FATEntry::setName(StrSlice const& name) {
+        u8 len = min(name.len(), BUFFER_SIZE-1);
         for(u8 i = 0; i < len; i++)
             this->name[i] = name[i];
         
-        for(u8 i = len; i < DATA_SIZE; i++)
+        for(u8 i = len; i < BUFFER_SIZE; i++)
             this->name[i] = '\0';
     }
 }
