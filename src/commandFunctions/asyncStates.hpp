@@ -3,7 +3,8 @@
 #include "../fileSystem/mod.hpp"
 
 namespace commandFunctions {
-    /// Async state holder for the `store` command, persists across loop cycles.
+
+    typedef fileSystem::PrintFilesState PrintFilesState;
     struct StoreState: public IAsyncState {
         enum TaskId {
             CheckName,
@@ -19,5 +20,37 @@ namespace commandFunctions {
             this->storeState.reset();
             this->file = fileSystem::FileInfo();
         }
+    };
+
+    struct FreeSpaceState: public IAsyncState {
+        u16 maxGap = 0;
+        int result = 0;
+        fileSystem::FreeSpaceState state = fileSystem::FreeSpaceState();
+
+        void reset() {
+            this->maxGap = 0;
+            this->result = 0;
+            this->state.reset();
+        }
+    };
+
+    struct FileFindState: public IAsyncState {
+        const char* name = nullptr;
+        int i = 0;
+
+        void reset() {
+            this->i = 0;
+            this->name = nullptr;
+        }
+    };
+
+    union AnyState {
+        StoreState store;
+        FileFindState fileFind;
+        FreeSpaceState freeSpace;
+        PrintFilesState printFiles;
+
+        AnyState() {}
+        ~AnyState() {}
     };
 }

@@ -1,6 +1,6 @@
 #include "collection.hpp"
 
-inline bool isNumber(int8_t currentDecimal) {
+inline bool isNumber(i16 currentDecimal) {
   return currentDecimal > -1 && currentDecimal < 10;
 }
 
@@ -14,11 +14,11 @@ const Fstr* parseU8(StrSlice str, MutRef<u8> value) {
     u16 number = 0;
     for(usize i = 0; i < str.len(); i++) {
         number *= 10;
-        u8 currentDecimal = (u8)(str[i] - '0');
+        i16 currentDecimal = (i16)(str[i] - '0');
         if(!isNumber(currentDecimal))
             return F("!!error!! string is not valid number");
 
-        number += currentDecimal;
+        number += (u16)currentDecimal;
     }
 
     if(number > UINT8_MAX)

@@ -1,4 +1,4 @@
-#include "mod.hpp"
+#include "../mod.hpp"
 #include <EEPROM.h>
 
 static void swap(fileSystem::EntryAddress arr[10], u8 i1, u8 i2) {
@@ -41,6 +41,7 @@ namespace fileSystem {
                     int firstGap =
                         (int)state.addressAt(0).start -
                         (int)dataStart;
+                        
                     if(firstGap > 0)
                         maxGap = firstGap;
                 }

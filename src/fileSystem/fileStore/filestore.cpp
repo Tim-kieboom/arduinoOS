@@ -20,15 +20,15 @@ namespace fileSystem {
                 return F("!!error!! EEPROM address is out of bounds");
             }
 
-            u8 eepromByte = EEPROM.read(address);
+            u8 byte = EEPROM.read(address);
             if(value == FileFlag::HasFile) {
-                eepromByte |= (1 << bitIndex);
+                byte |= (1 << bitIndex);
             } 
             else {
-                eepromByte &= ~(1 << bitIndex);
+                byte &= ~(1 << bitIndex);
             }
 
-            EEPROM.put(address, eepromByte);
+            EEPROM.put(address, byte);
             return nullptr;
         }
 

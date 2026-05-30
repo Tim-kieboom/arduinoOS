@@ -1,14 +1,9 @@
-#include "mod.hpp"
+#include "../mod.hpp"
 #include <EEPROM.h>
+#include <TKarduino.hpp>
 static const Fstr* checkName(StrSlice const& name);
 
-bool strEquals(const char* self, const char* other) {
-    return strcmp(self, other) == 0;
-}
-
 namespace fileSystem {
-    inline Task doesNameExist(MutRef<u16> i, const char* name, MutRef<bool> exists);
-    
     inline void store_checkName(MutRef<StoreState> state, FileInfo const& file);
     inline void store_writeData(MutRef<StoreState> state, FileInfo const& file);
     inline void store_writeFAT(MutRef<StoreState> stateRef, FileInfo const& file);
@@ -73,12 +68,11 @@ namespace fileSystem {
     inline void store_checkForDuplicate(MutRef<StoreState> stateRef, FileInfo const& file) {
         auto& state = stateRef.ref;
         
-        bool exists = false;
-        Task await = doesNameExist(out(state.i), file.name.asPtr(), out(exists));
-        if(!await.isDone) 
+        Task await = findFileIndex(out(state.i), file.name.asPtr());
+        if(!await.isDone)
             return;
 
-        if(exists) {
+        if(state.i != -1) {
             Serial.println(F("!!error!! fileName already exists"));
             state.taskId = StoreState::End;
             return;
@@ -116,8 +110,7 @@ namespace fileSystem {
         auto& state = stateRef.ref;
 
         u16 address = state.fatEntry.address;
-
-        if(state.i >= file.data.len()) {
+        if((usize)state.i >= file.data.len()) {
             Serial.print(F("successfully stored file: `"));
             file.name.print();
             Serial.println('`');
@@ -127,36 +120,6 @@ namespace fileSystem {
 
         EEPROM.write(state.i + address, file.data[state.i]);
         state.i++;
-    }
-
-    inline Task doesNameExist(MutRef<u16> iRef, const char* name, MutRef<bool> exists) {
-        auto& i = iRef.ref;
-        
-        u16 len = FAT::numFiles();
-        if(len == 0) {
-            i = 0;
-            exists.ref = false;
-            return Task::Done();
-        }
-        
-        if(i >= len) {
-            i = 0;
-            exists.ref = false;
-            return Task::Done();
-        }
-        
-        char nameBuffer[BUFFER_SIZE];
-        if(!FAT::entry_name(i, out(nameBuffer)))
-            return Task::Pending();
-        
-        if(strEquals(name, nameBuffer)) {
-            i = 0;
-            exists.ref = true;
-            return Task::Done();
-        }
-
-        i++;
-        return Task::Pending();
     }
 }
 

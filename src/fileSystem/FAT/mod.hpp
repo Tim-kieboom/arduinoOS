@@ -30,14 +30,17 @@ namespace fileSystem {
         /// Writes this entry to the next free slot in EEPROM. Returns true on success.
         bool writeToEEPROM();
 
+        
         /// Copies the given name into the internal name buffer (null-terminated).
         void setName(StrSlice const& name);
     };
-
+    
     /// FAT-level operations on the file allocation table.
     namespace FAT {
         /// @returns the number of files currently stored.
         u8 numFiles();
+        
+        bool removeEntry(u8 fileIndex);
 
         /// Clears the entire FAT (all entries).
         void clearall();
@@ -52,7 +55,12 @@ namespace fileSystem {
          * @brief Reads only the name of the FAT entry at fileIndex. 
          * @returns false if empty.
          */
-         bool entry_name(u8 fileIndex, MutRef<char[BUFFER_SIZE]> name);
+        bool entry_name(u8 fileIndex, MutRef<char[BUFFER_SIZE]> name);
+
+        bool entry_size(u8 fileIndex, MutRef<u8> size);
+        bool entry_address(u8 fileIndex, MutRef<u16> address);
+
+        void readData(u16 address, u8 size, MutRef<char[BUFFER_SIZE]> data);
     }
 
     /// EEPROM layout constants for FAT.

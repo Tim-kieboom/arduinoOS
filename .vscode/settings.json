@@ -1,7 +1,3 @@
 {
-    "cSpell.words": [
-        "ARDUINOOSDEBUGGER",
-        "COMMANDHANDLER",
-        "freespace"
-    ]
+    "C_Cpp.errorSquiggles": "disabled"
 }

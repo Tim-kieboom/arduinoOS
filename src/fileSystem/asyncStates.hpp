@@ -7,7 +7,6 @@ namespace fileSystem {
         u16 start;
         u16 end;
     };
-    
     struct FreeSpaceState: public IAsyncState {
         enum TaskId {
             Begin,
@@ -49,7 +48,7 @@ namespace fileSystem {
             End,
         };
         
-        u16 i = 0;                       ///< Loop counter
+        int i = 0;                       ///< Loop counter
         TaskId taskId = CheckName;
         FATEntry fatEntry = FATEntry(); ///< The FAT entry being written.
         FreeSpaceState freeSpaceState = FreeSpaceState();
@@ -64,7 +63,7 @@ namespace fileSystem {
     };
 
     /// Async state holder for the print files operation.
-    struct PrintFilesState {
+    struct PrintFilesState: public IAsyncState {
         enum TaskId {
             CheckName,
             IndexesLoaded,

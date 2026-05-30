@@ -1,6 +1,7 @@
 #include "../mod.hpp"
 #include "../filestore/mod.hpp"
 #include <EEPROM.h>
+#include "mod.hpp"
 
 namespace fileSystem {
 
@@ -11,6 +12,21 @@ namespace fileSystem {
 
         u8 numFiles() {
             return EEPROM.read(FAT_Header::NUM_FILES_INDEX);
+        }
+
+        bool removeEntry(u8 fileIndex) {
+            u8 numFiles = FAT::numFiles();
+            if(numFiles == 0 || fileStore::at(fileIndex) == FileFlag::Empty)
+                return false;
+            
+            auto error = fileStore::set(fileIndex, FileFlag::Empty);
+            if(error) {
+                Serial.println(error);
+                return false;
+            }
+
+            EEPROM.update(FAT_Header::NUM_FILES_INDEX, numFiles-1);
+            return true;
         }
 
         void clearall() {
@@ -36,8 +52,30 @@ namespace fileSystem {
             getEntry_name(fileIndex, name);
             return true;
         }
+        
+        bool entry_address(u8 fileIndex, MutRef<u16> address) {
+            if(fileStore::at(fileIndex) == FileFlag::Empty)
+                return false;
+            
+            getEntry_address(fileIndex, address);
+            return true;
+        }
 
-        inline uint entry_memoryIndex(uint fileIndex) {
+        bool entry_size(u8 fileIndex, MutRef<u8> size) {
+            if(fileStore::at(fileIndex) == FileFlag::Empty)
+                return false;
+            
+            getEntry_size(fileIndex, size);
+            return true;
+        }
+
+        void readData(u16 address, u8 size, MutRef<char[BUFFER_SIZE]> data) {
+            for(u8 i = 0; i < size; i++)
+                data.ref[i] = EEPROM.read(address++);
+        }
+
+        inline uint entry_memoryIndex(uint fileIndex)
+        {
             constexpr int firstFATIndex = FAT_Header::SIZE;
             return firstFATIndex + (FATEntry::SIZEOF * fileIndex);
         }
@@ -60,7 +98,7 @@ namespace fileSystem {
     }
 
     bool FATEntry::writeToEEPROM() {
-        u8 FATlen = FAT::numFiles();
+        u8 numFiles = FAT::numFiles();
         int fileIndex = fileStore::getFirstEmpty();
 
         if(fileIndex == -1) {
@@ -82,9 +120,8 @@ namespace fileSystem {
             return false;
         }
         
-        EEPROM.update(FAT_Header::NUM_FILES_INDEX, FATlen+1);
-        ASSERT_EQ(FATlen+1, FAT::numFiles());
-        DEBUG_PRINTM(F("(debug only) FAT size: "), FAT::numFiles(), '\n');
+        EEPROM.update(FAT_Header::NUM_FILES_INDEX, numFiles+1);
+        ASSERT_EQ(numFiles+1, FAT::numFiles());
         return true;
     }
 

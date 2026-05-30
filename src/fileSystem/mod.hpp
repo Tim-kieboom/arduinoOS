@@ -6,6 +6,7 @@ Tim Kieboom 1025003
 #include "asyncStates.hpp"
 
 namespace fileSystem {
+    constexpr int FREESPACE_ERROR = -1;
 
     /// Describes a file to be stored (name, data, size).
     struct FileInfo {
@@ -13,15 +14,13 @@ namespace fileSystem {
         StrSlice data = StrSlice(); ///< File data.
     };
     
-    /// Erases all files from the FAT and resets the system.
     void clearFAT();
+    bool erase(int fileIndex);
+    bool recieve(MutRef<int> fileIndex, MutRef<char[BUFFER_SIZE]> data, MutRef<u8> dataSize);
 
-    /// Stores a file asynchronously. Call repeatedly until the returned Task is done.
+    Task printFiles(MutRef<PrintFilesState> state);
+    Task findFileIndex(MutRef<int> fileIndex, const char* name);
     Task store(MutRef<StoreState> state, FileInfo const& info);
-    
-    constexpr int FREESPACE_ERROR = -1;
     Task findFreeSpace(MutRef<FreeSpaceState> state, MutRef<int> address, u16 size);
     Task largestFreeSpace(MutRef<FreeSpaceState> state, MutRef<u16> maxGap, MutRef<int> result);
-    /// prints all file names an sizes in FAT 
-    Task printFiles(MutRef<PrintFilesState> state);
 }

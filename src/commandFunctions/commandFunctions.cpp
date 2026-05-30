@@ -4,13 +4,17 @@ Tim Kieboom 1025003
 #include "mod.hpp"
 #include "common.hpp"
 #include "asyncStates.hpp"
+#include <new>
 
 inline const Fstr* getHelpMessage();
 inline bool hasArgumentCount(input::Buffer const& input, int shouldBe);
 
 namespace commandFunctions {
-    static Task innerStore(MutRef<input::Buffer> inputRef, MutRef<StoreState> stateRef);
-    
+    static AnyState anyState;
+    static Task innerStore(MutRef<input::Buffer> input, MutRef<StoreState> state);
+    static Task innerErase(MutRef<input::Buffer> input, MutRef<FileFindState> state);
+    static Task innerRecieve(MutRef<input::Buffer> input, MutRef<FileFindState> state);
+
     Task help(MutRef<input::Buffer> input) {
         if(!hasArgumentCount(input.ref, 0))
             return Task::Done();
@@ -42,31 +46,44 @@ namespace commandFunctions {
     }
 
     Task store(MutRef<input::Buffer> input) {
-        static auto state = StoreState();
+        static StoreState* state = nullptr;
+        if (!state)
+            state = new (&anyState.store) StoreState();
 
-        Task await = innerStore(input, out(state));
+        Task await = innerStore(input, out(*state));
         if(await.isDone)
-            state.reset();
+            state = nullptr;
         
         return await;
     }
 
-    Task erase(MutRef<input::Buffer> input) {
-        if(!hasArgumentCount(input.ref, 1))
-            return Task::Done();
+    Task erase(MutRef<input::Buffer> inputRef) {
+        static FileFindState* state = nullptr;
+        if(!state)
+            state = new(&anyState.fileFind) FileFindState();
 
-        TODO;
+        auto& input = inputRef.ref;
+        Task await = innerErase(out(input), out(*state));
+        if(await.isDone)
+            state = nullptr;
+
+        return await;
     }
 
     Task files(MutRef<input::Buffer> input) {
-        static auto state = fileSystem::PrintFilesState();
-        
-        if(state.first() && !hasArgumentCount(input.ref, 0))
-            return Task::Done();
+        static PrintFilesState* state = nullptr;
+        if(!state)
+            state = new(&anyState.printFiles) PrintFilesState();
 
-        Task await = fileSystem::printFiles(out(state));
-        if(await.isDone)
-            state.reset();
+        if(state->first() && !hasArgumentCount(input.ref, 0)) {
+            state = nullptr;
+            return Task::Done();
+        }
+
+        Task await = fileSystem::printFiles(out(*state));
+        if(await.isDone) {
+            state = nullptr;
+        }
 
         return await;
     }
@@ -85,11 +102,17 @@ namespace commandFunctions {
         TODO;
     }
 
-    Task recieve(MutRef<input::Buffer> input) {
-        if(!hasArgumentCount(input.ref, 1))
-            return Task::Done();
+    Task recieve(MutRef<input::Buffer> inputRef) {
+        static FileFindState* state = nullptr;
+        if(!state)
+            state = new(&anyState.fileFind) FileFindState();
 
-        TODO;
+        auto& input = inputRef.ref;
+        Task await = innerRecieve(out(input), out(*state));
+        if(await.isDone)
+            state = nullptr;
+
+        return await;
     }
 
     Task sysinfo(MutRef<input::Buffer> input) {
@@ -129,27 +152,27 @@ namespace commandFunctions {
     }
 
     Task freespace(MutRef<input::Buffer> input) {
-        static u16 maxGap = 0;
-        static int result = 0;
-        static auto state = fileSystem::FreeSpaceState();
-        
-        if(state.first() && !hasArgumentCount(input.ref, 0))
-            return Task::Done();
+        static FreeSpaceState* state = nullptr;
+        if(!state)
+            state = new(&anyState.freeSpace) FreeSpaceState();
 
-        Task await = fileSystem::largestFreeSpace(out(state), out(maxGap), out(result));
-        if(await.isDone) {
-            state.reset();
-            if(result == fileSystem::FREESPACE_ERROR) {
-                Serial.println(F("freespace not found"));
-            } 
-            else {
-                printM(F("freespace: "), maxGap, '\n');
-            }
-            maxGap = 0;
-            result = 0;
+        if(state->state.first() && !hasArgumentCount(input.ref, 0)) {
+            state = nullptr;
+            return Task::Done();
         }
+
+        Task await = fileSystem::largestFreeSpace(out(state->state), out(state->maxGap), out(state->result));
+        if(!await.isDone)
+            return Task::Pending();
         
-        return await;
+        if(state->result == fileSystem::FREESPACE_ERROR) {
+            Serial.println(F("freespace not found"));
+        } 
+        else {
+            printM(F("freespace: "), state->maxGap, '\n');
+        }
+        state = nullptr;
+        return Task::Done();
     }
 
     Task find(StrSlice name, MutRef<usize> iRef, MutRef<CommandFunctionsPtr> outputRef) {
@@ -180,6 +203,70 @@ namespace commandFunctions {
             command = NO_COMMAND;
             Serial.print(F(">> "));
         }
+    }
+
+    static Task innerErase(MutRef<input::Buffer> inputRef, MutRef<FileFindState> stateRef) {
+        auto& state = stateRef.ref;
+        auto& input = inputRef.ref;
+        
+        if(state.name == nullptr) {
+            if(!hasArgumentCount(input, 1)) {
+                return Task::Done();
+            }
+
+            StrSlice token;
+            auto error = input.getToken(out(token), 1);
+            if(error) {
+                printM(F("!!error!! tried to get first argument\n"), error, '\n');
+                return Task::Done();
+            }
+            state.name = token.asPtr();
+        }
+
+        Task await = fileSystem::findFileIndex(out(state.i), state.name);
+        if(!await.isDone)
+            return Task::Pending();
+
+        if(fileSystem::erase(state.i)) {
+            Serial.println(F("file removed"));
+        } 
+        else {
+            Serial.println(F("!!error!! file not found"));
+        }
+
+        return Task::Done();
+    }
+
+    static Task innerRecieve(MutRef<input::Buffer> inputRef, MutRef<FileFindState> stateRef) {
+        auto& input = inputRef.ref;
+        auto& state = stateRef.ref;
+        
+        if(state.name == nullptr) {
+            if(!hasArgumentCount(input, 1)) {
+                return Task::Done();
+            }
+
+            StrSlice token;
+            auto error = input.getToken(out(token), 1);
+            if(error) {
+                printM(F("!!error!! tried to get first argument\n"), error, '\n');
+                return Task::Done();
+            }
+            state.name = token.asPtr();
+        }
+
+        Task await = fileSystem::findFileIndex(out(state.i), state.name);
+        if(!await.isDone)
+            return Task::Pending();
+
+        u8 dataSize = 0;
+        char data[fileSystem::BUFFER_SIZE];
+        if(!fileSystem::recieve(out(state.i), out(data), out(dataSize))) {
+            return Task::Done();
+        }
+        
+        StrSlice(data, dataSize).println();
+        return Task::Done();
     }
 
     static Task innerStore(MutRef<input::Buffer> inputRef, MutRef<StoreState> stateRef) {
